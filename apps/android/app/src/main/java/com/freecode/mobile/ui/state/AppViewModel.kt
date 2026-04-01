@@ -24,6 +24,7 @@ import com.freecode.mobile.domain.service.ModelMessage
 import com.freecode.mobile.domain.service.ModelRequest
 import com.freecode.mobile.domain.service.StubModelGateway
 import com.freecode.mobile.domain.system.AndroidShellBridge
+import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -409,13 +410,32 @@ class AppViewModel(
         val thread = threads.value.firstOrNull { it.id == composer.selectedThreadId } ?: return
         val contact = contacts.value.firstOrNull { it.id == thread.aiId } ?: return
         if (composer.prompt.isBlank()) return
-        if (!canUseNetwork(contact)) {
+        if (!composer.prompt.trim().startsWith("/") && !canUseNetwork(contact)) {
             _messageComposerUiState.value = composer.copy(statusMessage = "当前 AI 没有网络权限，无法发送消息。")
             return
         }
 
         viewModelScope.launch {
             _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "正在发送消息…")
+            appendMessage(thread.id, MessageRole.USER, composer.prompt)
+            val toolResult = handleToolCommand(contact, composer.prompt)
+            if (toolResult != null) {
+                appendMessage(thread.id, MessageRole.ASSISTANT, toolResult)
+                repository.upsertThread(
+                    thread.copy(
+                        lastMessagePreview = toolResult,
+                        updatedAt = Instant.now().toString(),
+                        pinned = true,
+                    ),
+                )
+                _messageComposerUiState.value = composer.copy(
+                    sending = false,
+                    prompt = "",
+                    responsePreview = toolResult,
+                    statusMessage = "工具执行完成",
+                )
+                return@launch
+            }
             val savedProviderConfig = repository.getProviderConfig(contact.provider.id)
             val providerRequest = ProviderApiConfig(
                 providerId = contact.provider.id,
@@ -439,7 +459,6 @@ class AppViewModel(
                 modelGateway.send(config = providerRequest, request = request)
             }
             val response = gatewayResult.getOrNull()
-            appendMessage(thread.id, MessageRole.USER, composer.prompt)
             response?.content?.let { appendMessage(thread.id, MessageRole.ASSISTANT, it) }
             repository.upsertThread(
                 thread.copy(
@@ -454,6 +473,126 @@ class AppViewModel(
                 responsePreview = response?.content ?: "",
                 statusMessage = if (gatewayResult.isSuccess) "消息发送成功" else "消息发送失败",
             )
+        }
+    }
+
+    private suspend fun handleToolCommand(contact: AiContact, prompt: String): String? {
+        val trimmed = prompt.trim()
+        if (!trimmed.startsWith("/")) return null
+        return when {
+            trimmed.startsWith("/shell ") -> {
+                if (!canExecuteShell(contact, useRoot = false)) {
+                    "权限不足：当前 AI 不能执行 shell 命令。"
+                } else {
+                    val command = trimmed.removePrefix("/shell ").trim()
+                    val result = shellBridge.execute(command, false)
+                    buildToolResult("shell", result.exitCode, result.stdout, result.stderr)
+                }
+            }
+
+            trimmed.startsWith("/root ") -> {
+                if (!canExecuteShell(contact, useRoot = true)) {
+                    "权限不足：当前 AI 不能执行 root 命令。"
+                } else {
+                    val command = trimmed.removePrefix("/root ").trim()
+                    val result = shellBridge.execute(command, true)
+                    buildToolResult("root", result.exitCode, result.stdout, result.stderr)
+                }
+            }
+
+            trimmed.startsWith("/read ") -> {
+                val pathInput = trimmed.removePrefix("/read ").trim()
+                val targetPath = resolveWorkspacePath(contact, pathInput)
+                if (!contact.permissions.toolPolicy.allowFilesystemRead) {
+                    "权限不足：当前 AI 不能读取文件。"
+                } else if (!isPathAllowed(contact, targetPath)) {
+                    "路径超出允许范围：$targetPath"
+                } else {
+                    val content = fileService.readText(targetPath)
+                    readFile(targetPath)
+                    if (content.isBlank()) "文件为空或不存在：$targetPath" else "文件内容（$targetPath）：\n$content"
+                }
+            }
+
+            trimmed.startsWith("/write ") -> {
+                if (!canWriteFiles(contact)) {
+                    "权限不足：当前 AI 不能写入文件。"
+                } else {
+                    val payload = prompt.trim().removePrefix("/write ").trim()
+                    val firstLineBreak = payload.indexOf('\n')
+                    if (firstLineBreak <= 0) {
+                        "写入格式错误。请使用：/write 相对路径\\n文件内容"
+                    } else {
+                        val pathInput = payload.substring(0, firstLineBreak).trim()
+                        val content = payload.substring(firstLineBreak + 1)
+                        val targetPath = resolveWorkspacePath(contact, pathInput)
+                        if (!isPathAllowed(contact, targetPath)) {
+                            "路径超出允许范围：$targetPath"
+                        } else {
+                            val success = fileService.writeText(targetPath, content)
+                            if (success) {
+                                loadWorkspacePreview(contact.workspace.rootPath)
+                                readFile(targetPath)
+                                "已写入文件：$targetPath"
+                            } else {
+                                "写入失败：$targetPath"
+                            }
+                        }
+                    }
+                }
+            }
+
+            trimmed.startsWith("/ls") -> {
+                if (!contact.permissions.toolPolicy.allowFilesystemRead) {
+                    "权限不足：当前 AI 不能查看文件列表。"
+                } else {
+                    val pathInput = trimmed.removePrefix("/ls").trim().ifBlank { "." }
+                    val targetPath = resolveWorkspacePath(contact, pathInput)
+                    if (!isPathAllowed(contact, targetPath)) {
+                        "路径超出允许范围：$targetPath"
+                    } else {
+                        val nodes = fileService.listTree(targetPath, maxDepth = 2).take(20)
+                        if (nodes.isEmpty()) {
+                            "目录为空：$targetPath"
+                        } else {
+                            loadWorkspacePreview(targetPath)
+                            nodes.joinToString(separator = "\n", prefix = "目录预览（$targetPath）：\n") {
+                                "${"  ".repeat(it.depth)}${it.name}"
+                            }
+                        }
+                    }
+                }
+            }
+
+            else -> "暂不支持的指令。可用：/shell /root /read /write /ls"
+        }
+    }
+
+    private fun buildToolResult(
+        label: String,
+        exitCode: Int,
+        stdout: String,
+        stderr: String,
+    ): String = buildString {
+        append("已执行 $label 命令")
+        append("\nexitCode: $exitCode")
+        if (stdout.isNotBlank()) append("\nstdout:\n$stdout")
+        if (stderr.isNotBlank()) append("\nstderr:\n$stderr")
+    }
+
+    private fun resolveWorkspacePath(contact: AiContact, pathInput: String): String {
+        val candidate = File(pathInput)
+        return if (candidate.isAbsolute) {
+            candidate.absolutePath
+        } else {
+            File(contact.workspace.rootPath, pathInput).absolutePath
+        }
+    }
+
+    private fun isPathAllowed(contact: AiContact, path: String): Boolean {
+        val normalized = File(path).normalize().absolutePath
+        return contact.permissions.allowedPaths.any { allowed ->
+            normalized.startsWith(File(allowed).normalize().absolutePath)
         }
     }
 

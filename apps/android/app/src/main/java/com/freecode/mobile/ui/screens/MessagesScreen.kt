@@ -190,6 +190,11 @@ fun MessagesScreen(viewModel: AppViewModel) {
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.Gray,
                 )
+                Text(
+                    text = "可直接输入 /shell、/root、/read、/write、/ls 调用工具",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                )
             }
             OutlinedTextField(
                 value = composer.prompt,

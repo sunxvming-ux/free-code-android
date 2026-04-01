@@ -56,7 +56,12 @@ class HttpModelGateway : ModelGateway {
                 connection.errorStream
             }
             val payload = stream?.let { BufferedReader(it.reader()).use { reader -> reader.readText() } }.orEmpty()
-            val parsedContent = parseResponseContent(providerFlavor, payload)
+            val parsedContent = parseResponseContent(
+                flavor = providerFlavor,
+                payload = payload,
+                statusCode = connection.responseCode,
+                statusMessage = connection.responseMessage.orEmpty(),
+            )
             ModelResponse(
                 content = parsedContent.ifBlank { payload.ifBlank { "Empty response from $targetUrl" } },
                 providerLabel = providerFlavor.name.lowercase(),
@@ -119,6 +124,20 @@ private fun parseResponseContent(flavor: ProviderFlavor, payload: String): Strin
     }.ifBlank { payload }
 }
 
+private fun parseResponseContent(
+    flavor: ProviderFlavor,
+    payload: String,
+    statusCode: Int,
+    statusMessage: String,
+): String {
+    if (statusCode !in 200..299) {
+        return parseErrorPayload(payload).ifBlank {
+            "HTTP $statusCode ${statusMessage.ifBlank { "request failed" }}"
+        }
+    }
+    return parseResponseContent(flavor, payload)
+}
+
 private fun buildOpenAiMessages(request: ModelRequest): JSONArray = JSONArray().apply {
     if (request.systemPrompt.isNotBlank()) {
         put(
@@ -173,7 +192,21 @@ private fun parseOpenAiPayload(payload: String): String = runCatching {
     if (choices.length() == 0) return@runCatching payload
     val first = choices.optJSONObject(0) ?: return@runCatching payload
     val message = first.optJSONObject("message")
-    message?.optString("content").takeUnless { it.isNullOrBlank() }
+    val content = message?.opt("content")
+    when (content) {
+        is String -> content
+        is JSONArray -> buildString {
+            for (i in 0 until content.length()) {
+                val block = content.optJSONObject(i) ?: continue
+                val text = block.optString("text")
+                if (text.isNotBlank()) {
+                    if (isNotEmpty()) append('\n')
+                    append(text)
+                }
+            }
+        }
+        else -> null
+    }.takeUnless { it.isNullOrBlank() }
         ?: first.optString("text").takeUnless { it.isNullOrBlank() }
         ?: payload
 }.getOrDefault(payload)
@@ -196,5 +229,21 @@ private fun parseAnthropicPayload(payload: String): String = runCatching {
         }
     } else {
         root.optString("completion").ifBlank { payload }
+    }
+}.getOrDefault(payload)
+
+private fun parseErrorPayload(payload: String): String = runCatching {
+    val root = JSONObject(payload)
+    val error = root.optJSONObject("error")
+    when {
+        error != null -> {
+            val type = error.optString("type")
+            val message = error.optString("message")
+            listOf(type.takeIf { it.isNotBlank() }, message.takeIf { it.isNotBlank() })
+                .joinToString(": ")
+                .ifBlank { payload }
+        }
+        root.optString("message").isNotBlank() -> root.optString("message")
+        else -> payload
     }
 }.getOrDefault(payload)
