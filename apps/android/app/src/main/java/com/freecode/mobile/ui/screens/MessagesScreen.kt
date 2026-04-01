@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,6 +25,7 @@ import com.freecode.mobile.ui.state.AppViewModel
 fun MessagesScreen(viewModel: AppViewModel) {
     val threads by viewModel.threads.collectAsState()
     val composer by viewModel.messageComposerUiState.collectAsState()
+    val messagesByThread by viewModel.conversationMessages.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -52,6 +54,11 @@ fun MessagesScreen(viewModel: AppViewModel) {
                         label = { Text("Message") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    Text("Use HTTP gateway")
+                    Switch(
+                        checked = composer.useHttpGateway,
+                        onCheckedChange = viewModel::updateComposerGatewayMode,
+                    )
                     Button(
                         onClick = { viewModel.sendMessageToSelectedThread() },
                         enabled = !composer.sending,
@@ -64,6 +71,26 @@ fun MessagesScreen(viewModel: AppViewModel) {
                     if (composer.responsePreview.isNotBlank()) {
                         Text("Latest response")
                         Text(composer.responsePreview)
+                    }
+                }
+            }
+        }
+        val selectedMessages = messagesByThread[composer.selectedThreadId].orEmpty()
+        if (selectedMessages.isNotEmpty()) {
+            item {
+                Text("Conversation", style = MaterialTheme.typography.titleMedium)
+            }
+            items(selectedMessages) { message ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(message.role.name, style = MaterialTheme.typography.labelMedium)
+                        Text(message.content)
+                        Text(message.timestamp, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }

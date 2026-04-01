@@ -10,6 +10,8 @@ import com.freecode.mobile.domain.files.LocalWorkspaceFileService
 import com.freecode.mobile.domain.model.AiContact
 import com.freecode.mobile.domain.model.ContactDraft
 import com.freecode.mobile.domain.model.ConversationThread
+import com.freecode.mobile.domain.model.ConversationMessage
+import com.freecode.mobile.domain.model.MessageRole
 import com.freecode.mobile.domain.model.PermissionLevel
 import com.freecode.mobile.domain.model.ProviderConfig
 import com.freecode.mobile.domain.model.ProviderApiConfig
@@ -17,6 +19,7 @@ import com.freecode.mobile.domain.model.ProviderSetting
 import com.freecode.mobile.domain.model.WorkspaceBinding
 import com.freecode.mobile.domain.model.permissionPreset
 import com.freecode.mobile.domain.model.toDraft
+import com.freecode.mobile.domain.service.HttpModelGateway
 import com.freecode.mobile.domain.service.ModelRequest
 import com.freecode.mobile.domain.service.StubModelGateway
 import com.freecode.mobile.domain.system.AndroidShellBridge
@@ -32,6 +35,7 @@ class AppViewModel(
     private val fileService: LocalWorkspaceFileService = LocalWorkspaceFileService(),
     private val shellBridge: AndroidShellBridge = AndroidShellBridge(),
     private val modelGateway: StubModelGateway = StubModelGateway(),
+    private val httpModelGateway: HttpModelGateway = HttpModelGateway(),
 ) : ViewModel() {
     val contacts: StateFlow<List<AiContact>> = repository.observeContacts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -59,6 +63,10 @@ class AppViewModel(
 
     private val _providerConfigUiState = MutableStateFlow(ProviderConfigUiState())
     val providerConfigUiState: StateFlow<ProviderConfigUiState> = _providerConfigUiState
+
+    private val _conversationMessages =
+        MutableStateFlow<Map<String, List<ConversationMessage>>>(emptyMap())
+    val conversationMessages: StateFlow<Map<String, List<ConversationMessage>>> = _conversationMessages
 
     init {
         viewModelScope.launch {
@@ -176,6 +184,8 @@ class AppViewModel(
     fun deleteContact(contactId: String) {
         viewModelScope.launch {
             repository.deleteContact(contactId)
+            _conversationMessages.value = _conversationMessages.value
+                .filterKeys { threadId -> threads.value.firstOrNull { it.id == threadId }?.aiId != contactId }
         }
     }
 
@@ -203,6 +213,11 @@ class AppViewModel(
     fun createFileInActiveWorkspace() {
         val snapshot = _fileEditorUiState.value
         if (snapshot.activeWorkspacePath.isBlank() || snapshot.newFileName.isBlank()) return
+        val activeContact = contacts.value.firstOrNull { it.workspace.rootPath == snapshot.activeWorkspacePath }
+        if (activeContact != null && !canWriteFiles(activeContact)) {
+            _fileEditorUiState.value = snapshot.copy(statusMessage = "File creation blocked by permission profile")
+            return
+        }
         viewModelScope.launch {
             val filePath = "${snapshot.activeWorkspacePath}/${snapshot.newFileName}"
             val success = fileService.createFile(filePath, "")
@@ -236,6 +251,11 @@ class AppViewModel(
     fun saveSelectedFile() {
         val snapshot = _fileEditorUiState.value
         if (snapshot.selectedFilePath.isBlank()) return
+        val activeContact = contacts.value.firstOrNull { it.workspace.rootPath == snapshot.activeWorkspacePath }
+        if (activeContact != null && !canWriteFiles(activeContact)) {
+            _fileEditorUiState.value = snapshot.copy(statusMessage = "Save blocked by permission profile")
+            return
+        }
         viewModelScope.launch {
             val success = fileService.writeText(snapshot.selectedFilePath, snapshot.selectedFileContent)
             _fileEditorUiState.value = _fileEditorUiState.value.copy(
@@ -257,6 +277,12 @@ class AppViewModel(
     fun runShellCommand() {
         val snapshot = _shellUiState.value
         if (snapshot.command.isBlank()) return
+        val selectedThread = threads.value.firstOrNull { it.id == messageComposerUiState.value.selectedThreadId }
+        val selectedContact = selectedThread?.let { thread -> contacts.value.firstOrNull { it.id == thread.aiId } }
+        if (selectedContact != null && !canExecuteShell(selectedContact, snapshot.useRoot)) {
+            _shellUiState.value = snapshot.copy(stderr = "Shell execution blocked by permission profile")
+            return
+        }
         viewModelScope.launch {
             _shellUiState.value = snapshot.copy(
                 running = true,
@@ -312,6 +338,10 @@ class AppViewModel(
         _providerConfigUiState.value = _providerConfigUiState.value.copy(defaultModel = value)
     }
 
+    fun updateComposerGatewayMode(useHttp: Boolean) {
+        _messageComposerUiState.value = _messageComposerUiState.value.copy(useHttpGateway = useHttp)
+    }
+
     fun selectThread(threadId: String) {
         _messageComposerUiState.value = _messageComposerUiState.value.copy(selectedThreadId = threadId)
     }
@@ -328,18 +358,42 @@ class AppViewModel(
 
         viewModelScope.launch {
             _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "Sending...")
-            val result = modelGateway.send(
-                config = ProviderApiConfig(
-                    providerId = contact.provider.id,
-                    baseUrl = contact.provider.baseUrl.orEmpty(),
-                    defaultModel = contact.provider.model,
-                ),
-                request = ModelRequest(
-                    prompt = composer.prompt,
-                    model = contact.provider.model,
-                ),
+            val providerRequest = ProviderApiConfig(
+                providerId = contact.provider.id,
+                baseUrl = providerConfigUiState.value.baseUrl.ifBlank { contact.provider.baseUrl.orEmpty() },
+                apiKey = providerConfigUiState.value.apiKey,
+                defaultModel = providerConfigUiState.value.defaultModel.ifBlank { contact.provider.model },
             )
-            val response = result.getOrNull()
+            val gatewayResult = if (composer.useHttpGateway) {
+                httpModelGateway.send(
+                    config = providerRequest,
+                    request = ModelRequest(
+                        prompt = composer.prompt,
+                        model = providerRequest.defaultModel.ifBlank { contact.provider.model },
+                    ),
+                )
+            } else {
+                modelGateway.send(
+                    config = providerRequest,
+                    request = ModelRequest(
+                        prompt = composer.prompt,
+                        model = providerRequest.defaultModel.ifBlank { contact.provider.model },
+                    ),
+                )
+            }
+            val response = gatewayResult.getOrNull()
+            appendMessage(
+                threadId = thread.id,
+                role = MessageRole.USER,
+                content = composer.prompt,
+            )
+            response?.content?.let {
+                appendMessage(
+                    threadId = thread.id,
+                    role = MessageRole.ASSISTANT,
+                    content = it,
+                )
+            }
             val updatedThread = thread.copy(
                 lastMessagePreview = response?.content ?: "Request failed",
                 updatedAt = Instant.now().toString(),
@@ -350,9 +404,34 @@ class AppViewModel(
                 sending = false,
                 prompt = "",
                 responsePreview = response?.content ?: "",
-                statusMessage = if (result.isSuccess) "Message sent" else "Send failed",
+                statusMessage = if (gatewayResult.isSuccess) "Message sent" else "Send failed",
             )
         }
+    }
+
+    private fun appendMessage(
+        threadId: String,
+        role: MessageRole,
+        content: String,
+    ) {
+        val current = _conversationMessages.value[threadId].orEmpty()
+        val next = current + ConversationMessage(
+            id = "${threadId}-${current.size + 1}",
+            threadId = threadId,
+            role = role,
+            content = content,
+            timestamp = Instant.now().toString(),
+        )
+        _conversationMessages.value = _conversationMessages.value + (threadId to next)
+    }
+
+    private fun canWriteFiles(contact: AiContact): Boolean =
+        contact.permissions.toolPolicy.allowFilesystemWrite
+
+    private fun canExecuteShell(contact: AiContact, useRoot: Boolean): Boolean {
+        if (!contact.permissions.toolPolicy.allowShell) return false
+        if (useRoot && !contact.permissions.toolPolicy.allowRootExecution) return false
+        return true
     }
 
     companion object {

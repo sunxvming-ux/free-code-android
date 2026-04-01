@@ -6,4 +6,5 @@ data class MessageComposerUiState(
     val sending: Boolean = false,
     val responsePreview: String = "",
     val statusMessage: String = "",
+    val useHttpGateway: Boolean = false,
 )
