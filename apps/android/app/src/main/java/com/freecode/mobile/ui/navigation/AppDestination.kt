@@ -1,4 +1,4 @@
-package com.freecode.mobile.ui.navigation
+﻿package com.freecode.mobile.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline

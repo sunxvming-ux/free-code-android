@@ -1,4 +1,4 @@
-package com.freecode.mobile.ui.screens
+﻿package com.freecode.mobile.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -9,14 +9,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.freecode.mobile.domain.model.ContactDraft
 import com.freecode.mobile.domain.model.PermissionLevel
@@ -51,55 +53,61 @@ fun ContactsScreen(viewModel: AppViewModel) {
     var showCreateDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF4F4F4)),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("通讯录", style = MaterialTheme.typography.headlineMedium)
-                Text("创建和编辑 AI 联系人，支持独立模型、目录、权限和中文名称。")
-                Button(onClick = { showCreateDialog = true }) {
-                    Text("创建 AI")
+                Text("通讯录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("每个联系人就是一个独立 AI，可单独配置模型、权限和工作目录。", color = Color.Gray)
+                OutlinedButton(onClick = { showCreateDialog = true }) {
+                    Text("新建 AI")
                 }
             }
         }
+
         items(contacts) { contact ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF6750A4)),
+                            .background(Color(0xFF07C160)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(contact.avatarLabel, color = Color.White)
+                        Text(contact.avatarLabel.take(2), color = Color.White, fontWeight = FontWeight.Bold)
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(contact.name, style = MaterialTheme.typography.titleMedium)
-                        Text(contact.description, style = MaterialTheme.typography.bodyMedium)
-                        Text("模型：${contact.provider.model}")
-                        Text("权限：${contact.permissions.level}")
-                        Text("目录：${contact.workspace.rootPath}")
-                        Row {
-                            OutlinedButton(onClick = { viewModel.startEditingContact(contact.id) }) {
-                                Text("编辑")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(onClick = { viewModel.deleteContact(contact.id) }) {
-                                Text("删除")
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(onClick = { viewModel.loadWorkspacePreview(contact.workspace.rootPath) }) {
-                                Text("预览文件")
-                            }
-                        }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(contact.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(contact.description, color = Color.Gray)
+                        Text("模型：${contact.provider.kind.name} / ${contact.provider.model}")
+                        Text("权限：${contact.permissions.level} · 目录：${contact.workspace.name}")
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(onClick = { viewModel.startEditingContact(contact.id) }) {
+                        Text("编辑")
+                    }
+                    OutlinedButton(onClick = { viewModel.loadWorkspacePreview(contact.workspace.rootPath) }) {
+                        Text("查看文件")
+                    }
+                    OutlinedButton(onClick = { viewModel.deleteContact(contact.id) }) {
+                        Text("删除")
                     }
                 }
             }
@@ -108,7 +116,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
 
     if (showCreateDialog) {
         ContactDialog(
-            title = "创建 AI 联系人",
+            title = "新建 AI 联系人",
             initialDraft = ContactDraft(),
             onDismiss = { showCreateDialog = false },
             onSave = {
@@ -123,9 +131,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
             title = "编辑 AI 联系人",
             initialDraft = viewModel.getEditingDraft() ?: ContactDraft(),
             onDismiss = { viewModel.stopEditingContact() },
-            onSave = { draft ->
-                editingContactId?.let { viewModel.updateContact(it, draft) }
-            },
+            onSave = { draft -> editingContactId?.let { viewModel.updateContact(it, draft) } },
         )
     }
 }
@@ -146,12 +152,12 @@ private fun ContactDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = { onSave(draft) }) {
-                Text("Save")
+                Text("保存")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("取消")
             }
         },
         title = { Text(title) },
@@ -174,13 +180,16 @@ private fun ContactDialog(
                     onValueChange = { draft = draft.copy(systemPrompt = it) },
                     label = { Text("系统提示词") },
                     modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
                 )
                 ExposedDropdownMenuBox(
                     expanded = providerMenuExpanded,
                     onExpandedChange = { providerMenuExpanded = !providerMenuExpanded },
                 ) {
                     OutlinedTextField(
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
                         readOnly = true,
                         value = draft.providerKind.name,
                         onValueChange = {},
@@ -205,7 +214,7 @@ private fun ContactDialog(
                 OutlinedTextField(
                     value = draft.model,
                     onValueChange = { draft = draft.copy(model = it) },
-                    label = { Text("模型") },
+                    label = { Text("模型名称") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ExposedDropdownMenuBox(
@@ -213,7 +222,9 @@ private fun ContactDialog(
                     onExpandedChange = { permissionMenuExpanded = !permissionMenuExpanded },
                 ) {
                     OutlinedTextField(
-                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
                         readOnly = true,
                         value = draft.permissionLevel.name,
                         onValueChange = {},
@@ -235,6 +246,7 @@ private fun ContactDialog(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
                 OutlinedTextField(
                     value = draft.workspaceName,
                     onValueChange = { draft = draft.copy(workspaceName = it) },

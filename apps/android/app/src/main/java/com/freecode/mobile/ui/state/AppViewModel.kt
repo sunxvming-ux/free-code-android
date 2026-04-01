@@ -1,4 +1,4 @@
-package com.freecode.mobile.ui.state
+﻿package com.freecode.mobile.ui.state
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -9,12 +9,12 @@ import com.freecode.mobile.domain.files.FileNode
 import com.freecode.mobile.domain.files.LocalWorkspaceFileService
 import com.freecode.mobile.domain.model.AiContact
 import com.freecode.mobile.domain.model.ContactDraft
-import com.freecode.mobile.domain.model.ConversationThread
 import com.freecode.mobile.domain.model.ConversationMessage
+import com.freecode.mobile.domain.model.ConversationThread
 import com.freecode.mobile.domain.model.MessageRole
 import com.freecode.mobile.domain.model.PermissionLevel
-import com.freecode.mobile.domain.model.ProviderConfig
 import com.freecode.mobile.domain.model.ProviderApiConfig
+import com.freecode.mobile.domain.model.ProviderConfig
 import com.freecode.mobile.domain.model.ProviderSetting
 import com.freecode.mobile.domain.model.WorkspaceBinding
 import com.freecode.mobile.domain.model.permissionPreset
@@ -68,8 +68,7 @@ class AppViewModel(
     private val _providerConfigUiState = MutableStateFlow(ProviderConfigUiState())
     val providerConfigUiState: StateFlow<ProviderConfigUiState> = _providerConfigUiState
 
-    private val _conversationMessages =
-        MutableStateFlow<Map<String, List<ConversationMessage>>>(emptyMap())
+    private val _conversationMessages = MutableStateFlow<Map<String, List<ConversationMessage>>>(emptyMap())
     val conversationMessages: StateFlow<Map<String, List<ConversationMessage>>> = _conversationMessages
 
     init {
@@ -85,9 +84,7 @@ class AppViewModel(
         }
         viewModelScope.launch {
             persistedMessages.collect { items ->
-                if (items.isNotEmpty()) {
-                    _conversationMessages.value = items.groupBy { it.threadId }
-                }
+                _conversationMessages.value = items.groupBy { it.threadId }
             }
         }
     }
@@ -96,14 +93,12 @@ class AppViewModel(
         viewModelScope.launch {
             val contactSnapshot = contacts.value
             val threadSnapshot = threads.value
-            val safeName = draft.name.ifBlank { "New AI" }
+            val safeName = draft.name.ifBlank { "新 AI" }
             val workspaceName = draft.workspaceName.ifBlank { safeName }
             val workspacePath = draft.workspacePath.ifBlank {
                 "/storage/emulated/0/free-code/workspaces/${safeName.lowercase().replace(' ', '-')}"
             }
-            val profile = permissionPreset(draft.permissionLevel).copy(
-                allowedPaths = listOf(workspacePath),
-            )
+            val profile = permissionPreset(draft.permissionLevel).copy(allowedPaths = listOf(workspacePath))
             val provider = ProviderConfig(
                 id = "provider-${draft.providerKind.name.lowercase()}-${contactSnapshot.size + 1}",
                 kind = draft.providerKind,
@@ -118,7 +113,7 @@ class AppViewModel(
                 name = safeName,
                 avatarLabel = safeName.take(1),
                 systemPrompt = draft.systemPrompt,
-                description = draft.description.ifBlank { "Custom AI contact" },
+                description = draft.description.ifBlank { "自定义 AI 联系人" },
                 provider = provider,
                 workspace = WorkspaceBinding(
                     id = "ws-${contactSnapshot.size + 1}",
@@ -142,8 +137,8 @@ class AppViewModel(
                 ConversationThread(
                     id = "thread-${threadSnapshot.size + 1}",
                     aiId = contact.id,
-                    title = "${contact.name} session",
-                    lastMessagePreview = "AI contact created and ready for tasks.",
+                    title = "${contact.name} 会话",
+                    lastMessagePreview = "AI 已创建，可以开始聊天和执行任务。",
                     updatedAt = Instant.now().toString(),
                     pinned = true,
                 ),
@@ -169,9 +164,7 @@ class AppViewModel(
         viewModelScope.launch {
             val workspacePath = draft.workspacePath.ifBlank { existing.workspace.rootPath }
             val workspaceName = draft.workspaceName.ifBlank { existing.workspace.name }
-            val profile = permissionPreset(draft.permissionLevel).copy(
-                allowedPaths = listOf(workspacePath),
-            )
+            val profile = permissionPreset(draft.permissionLevel).copy(allowedPaths = listOf(workspacePath))
             val updated = existing.copy(
                 name = draft.name.ifBlank { existing.name },
                 avatarLabel = draft.name.ifBlank { existing.name }.take(1),
@@ -228,7 +221,7 @@ class AppViewModel(
             _workspacePreview.value = fileService.listTree(path)
             _fileEditorUiState.value = _fileEditorUiState.value.copy(
                 activeWorkspacePath = path,
-                statusMessage = "Loaded workspace preview for $path",
+                statusMessage = "已加载工作区：$path",
             )
         }
     }
@@ -242,14 +235,14 @@ class AppViewModel(
         if (snapshot.activeWorkspacePath.isBlank() || snapshot.newFileName.isBlank()) return
         val activeContact = contacts.value.firstOrNull { it.workspace.rootPath == snapshot.activeWorkspacePath }
         if (activeContact != null && !canWriteFiles(activeContact)) {
-            _fileEditorUiState.value = snapshot.copy(statusMessage = "File creation blocked by permission profile")
+            _fileEditorUiState.value = snapshot.copy(statusMessage = "当前 AI 没有创建文件的权限")
             return
         }
         viewModelScope.launch {
             val filePath = "${snapshot.activeWorkspacePath}/${snapshot.newFileName}"
             val success = fileService.createFile(filePath, "")
             _fileEditorUiState.value = _fileEditorUiState.value.copy(
-                statusMessage = if (success) "Created $filePath" else "Failed to create $filePath",
+                statusMessage = if (success) "已创建文件：$filePath" else "创建文件失败：$filePath",
             )
             loadWorkspacePreview(snapshot.activeWorkspacePath)
             if (success) readFile(filePath)
@@ -263,16 +256,13 @@ class AppViewModel(
                 selectedFilePath = path,
                 selectedFileContent = content,
                 dirty = false,
-                statusMessage = "Opened $path",
+                statusMessage = "已打开文件：$path",
             )
         }
     }
 
     fun updateSelectedFileContent(content: String) {
-        _fileEditorUiState.value = _fileEditorUiState.value.copy(
-            selectedFileContent = content,
-            dirty = true,
-        )
+        _fileEditorUiState.value = _fileEditorUiState.value.copy(selectedFileContent = content, dirty = true)
     }
 
     fun saveSelectedFile() {
@@ -280,14 +270,14 @@ class AppViewModel(
         if (snapshot.selectedFilePath.isBlank()) return
         val activeContact = contacts.value.firstOrNull { it.workspace.rootPath == snapshot.activeWorkspacePath }
         if (activeContact != null && !canWriteFiles(activeContact)) {
-            _fileEditorUiState.value = snapshot.copy(statusMessage = "Save blocked by permission profile")
+            _fileEditorUiState.value = snapshot.copy(statusMessage = "当前 AI 没有保存文件的权限")
             return
         }
         viewModelScope.launch {
             val success = fileService.writeText(snapshot.selectedFilePath, snapshot.selectedFileContent)
             _fileEditorUiState.value = _fileEditorUiState.value.copy(
                 dirty = !success,
-                statusMessage = if (success) "Saved ${snapshot.selectedFilePath}" else "Failed to save ${snapshot.selectedFilePath}",
+                statusMessage = if (success) "已保存：${snapshot.selectedFilePath}" else "保存失败：${snapshot.selectedFilePath}",
             )
             loadWorkspacePreview(snapshot.activeWorkspacePath)
         }
@@ -307,16 +297,11 @@ class AppViewModel(
         val selectedThread = threads.value.firstOrNull { it.id == messageComposerUiState.value.selectedThreadId }
         val selectedContact = selectedThread?.let { thread -> contacts.value.firstOrNull { it.id == thread.aiId } }
         if (selectedContact != null && !canExecuteShell(selectedContact, snapshot.useRoot)) {
-            _shellUiState.value = snapshot.copy(stderr = "Shell execution blocked by permission profile")
+            _shellUiState.value = snapshot.copy(stderr = "当前 AI 没有执行此命令的权限")
             return
         }
         viewModelScope.launch {
-            _shellUiState.value = snapshot.copy(
-                running = true,
-                exitCode = null,
-                stdout = "",
-                stderr = "",
-            )
+            _shellUiState.value = snapshot.copy(running = true, exitCode = null, stdout = "", stderr = "")
             val result = shellBridge.execute(snapshot.command, snapshot.useRoot)
             _shellUiState.value = _shellUiState.value.copy(
                 running = false,
@@ -345,7 +330,7 @@ class AppViewModel(
                     defaultModel = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
                 ),
                 request = ModelRequest(
-                    prompt = "healthcheck",
+                    prompt = "接口健康检查",
                     model = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
                 ),
             )
@@ -392,7 +377,7 @@ class AppViewModel(
                     defaultModel = snapshot.defaultModel,
                 ),
             )
-            _shellUiState.value = _shellUiState.value.copy(stdout = "Saved provider config for ${snapshot.providerId}")
+            _shellUiState.value = _shellUiState.value.copy(stdout = "已保存 Provider 配置：${snapshot.providerId}")
         }
     }
 
@@ -430,61 +415,39 @@ class AppViewModel(
         }
 
         viewModelScope.launch {
-            _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "Sending...")
+            _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "正在发送消息…")
             val savedProviderConfig = repository.getProviderConfig(contact.provider.id)
             val providerRequest = ProviderApiConfig(
                 providerId = contact.provider.id,
                 baseUrl = savedProviderConfig?.baseUrl
                     ?: providerConfigUiState.value.baseUrl.ifBlank { contact.provider.baseUrl.orEmpty() },
-                apiKey = savedProviderConfig?.apiKey
-                    ?: providerConfigUiState.value.apiKey,
+                apiKey = savedProviderConfig?.apiKey ?: providerConfigUiState.value.apiKey,
                 defaultModel = savedProviderConfig?.defaultModel
                     ?: providerConfigUiState.value.defaultModel.ifBlank { contact.provider.model },
             )
+            val request = ModelRequest(
+                prompt = composer.prompt,
+                model = providerRequest.defaultModel.ifBlank { contact.provider.model },
+                systemPrompt = contact.systemPrompt,
+                messages = conversationMessages.value[thread.id]
+                    .orEmpty()
+                    .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
+            )
             val gatewayResult = if (composer.useHttpGateway) {
-                httpModelGateway.send(
-                    config = providerRequest,
-                    request = ModelRequest(
-                        prompt = composer.prompt,
-                        model = providerRequest.defaultModel.ifBlank { contact.provider.model },
-                        systemPrompt = contact.systemPrompt,
-                        messages = conversationMessages.value[thread.id]
-                            .orEmpty()
-                            .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
-                    ),
-                )
+                httpModelGateway.send(config = providerRequest, request = request)
             } else {
-                modelGateway.send(
-                    config = providerRequest,
-                    request = ModelRequest(
-                        prompt = composer.prompt,
-                        model = providerRequest.defaultModel.ifBlank { contact.provider.model },
-                        systemPrompt = contact.systemPrompt,
-                        messages = conversationMessages.value[thread.id]
-                            .orEmpty()
-                            .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
-                    ),
-                )
+                modelGateway.send(config = providerRequest, request = request)
             }
             val response = gatewayResult.getOrNull()
-            appendMessage(
-                threadId = thread.id,
-                role = MessageRole.USER,
-                content = composer.prompt,
+            appendMessage(thread.id, MessageRole.USER, composer.prompt)
+            response?.content?.let { appendMessage(thread.id, MessageRole.ASSISTANT, it) }
+            repository.upsertThread(
+                thread.copy(
+                    lastMessagePreview = response?.content ?: "请求失败",
+                    updatedAt = Instant.now().toString(),
+                    pinned = true,
+                ),
             )
-            response?.content?.let {
-                appendMessage(
-                    threadId = thread.id,
-                    role = MessageRole.ASSISTANT,
-                    content = it,
-                )
-            }
-            val updatedThread = thread.copy(
-                lastMessagePreview = response?.content ?: "Request failed",
-                updatedAt = Instant.now().toString(),
-                pinned = true,
-            )
-            repository.upsertThread(updatedThread)
             _messageComposerUiState.value = composer.copy(
                 sending = false,
                 prompt = "",
@@ -494,11 +457,7 @@ class AppViewModel(
         }
     }
 
-    private fun appendMessage(
-        threadId: String,
-        role: MessageRole,
-        content: String,
-    ) {
+    private fun appendMessage(threadId: String, role: MessageRole, content: String) {
         val current = _conversationMessages.value[threadId].orEmpty()
         val message = ConversationMessage(
             id = "${threadId}-${current.size + 1}",
@@ -507,8 +466,7 @@ class AppViewModel(
             content = content,
             timestamp = Instant.now().toString(),
         )
-        val next = current + message
-        _conversationMessages.value = _conversationMessages.value + (threadId to next)
+        _conversationMessages.value = _conversationMessages.value + (threadId to (current + message))
         viewModelScope.launch {
             repository.upsertMessage(message)
         }
