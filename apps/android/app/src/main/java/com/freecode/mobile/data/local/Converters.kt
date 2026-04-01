@@ -1,6 +1,7 @@
 package com.freecode.mobile.data.local
 
 import androidx.room.TypeConverter
+import com.freecode.mobile.domain.model.MessageRole
 import com.freecode.mobile.domain.model.PermissionLevel
 import com.freecode.mobile.domain.model.ProviderKind
 
@@ -23,4 +24,10 @@ class Converters {
 
     @TypeConverter
     fun toProviderKind(value: String): ProviderKind = ProviderKind.valueOf(value)
+
+    @TypeConverter
+    fun fromMessageRole(value: MessageRole): String = value.name
+
+    @TypeConverter
+    fun toMessageRole(value: String): MessageRole = MessageRole.valueOf(value)
 }

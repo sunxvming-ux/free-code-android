@@ -50,3 +50,27 @@ interface ProviderSettingDao {
     @Query("UPDATE providers SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: String, enabled: Boolean)
 }
+
+@Dao
+interface ProviderConfigDao {
+    @Query("SELECT * FROM provider_configs WHERE providerId = :providerId LIMIT 1")
+    suspend fun getById(providerId: String): ProviderConfigEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(item: ProviderConfigEntity)
+}
+
+@Dao
+interface ConversationMessageDao {
+    @Query("SELECT * FROM conversation_messages ORDER BY timestamp ASC")
+    fun observeAll(): Flow<List<ConversationMessageEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(item: ConversationMessageEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<ConversationMessageEntity>)
+
+    @Query("DELETE FROM conversation_messages WHERE threadId = :threadId")
+    suspend fun deleteByThreadId(threadId: String)
+}

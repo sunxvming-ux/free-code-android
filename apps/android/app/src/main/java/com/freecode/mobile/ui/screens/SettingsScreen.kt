@@ -111,6 +111,9 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         label = { Text("Default model") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    Button(onClick = { viewModel.saveProviderConfig() }) {
+                        Text("Save provider config")
+                    }
                 }
             }
         }
@@ -128,6 +131,9 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         checked = provider.enabled,
                         onCheckedChange = { viewModel.toggleProvider(provider.id) },
                     )
+                    Button(onClick = { viewModel.selectProviderConfig(provider.id, provider.title) }) {
+                        Text("Edit request config")
+                    }
                 }
             }
         }

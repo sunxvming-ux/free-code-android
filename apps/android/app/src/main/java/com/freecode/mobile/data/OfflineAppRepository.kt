@@ -4,7 +4,9 @@ import com.freecode.mobile.data.local.AppDatabase
 import com.freecode.mobile.data.local.toDomain
 import com.freecode.mobile.data.local.toEntity
 import com.freecode.mobile.domain.model.AiContact
+import com.freecode.mobile.domain.model.ConversationMessage
 import com.freecode.mobile.domain.model.ConversationThread
+import com.freecode.mobile.domain.model.ProviderApiConfig
 import com.freecode.mobile.domain.model.ProviderSetting
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -22,6 +24,9 @@ class OfflineAppRepository(
 
     override fun observeProviders(): Flow<List<ProviderSetting>> =
         database.providerSettingDao().observeAll().map { items -> items.map { it.toDomain() } }
+
+    override fun observeMessages(): Flow<List<ConversationMessage>> =
+        database.conversationMessageDao().observeAll().map { items -> items.map { it.toDomain() } }
 
     override suspend fun bootstrapIfEmpty(
         contacts: List<AiContact>,
@@ -42,6 +47,10 @@ class OfflineAppRepository(
         database.conversationThreadDao().upsert(thread.toEntity())
     }
 
+    override suspend fun upsertMessage(message: ConversationMessage) {
+        database.conversationMessageDao().upsert(message.toEntity())
+    }
+
     override suspend fun setProviderEnabled(id: String, enabled: Boolean) {
         database.providerSettingDao().setEnabled(id, enabled)
     }
@@ -50,4 +59,11 @@ class OfflineAppRepository(
         database.contactDao().deleteById(contactId)
         database.conversationThreadDao().deleteByAiId(contactId)
     }
+
+    override suspend fun saveProviderConfig(config: ProviderApiConfig) {
+        database.providerConfigDao().upsert(config.toEntity())
+    }
+
+    override suspend fun getProviderConfig(providerId: String): ProviderApiConfig? =
+        database.providerConfigDao().getById(providerId)?.toDomain()
 }

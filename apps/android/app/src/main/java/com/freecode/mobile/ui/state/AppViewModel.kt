@@ -46,6 +46,9 @@ class AppViewModel(
     val providers: StateFlow<List<ProviderSetting>> = repository.observeProviders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val persistedMessages: StateFlow<List<ConversationMessage>> = repository.observeMessages()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _workspacePreview = MutableStateFlow<List<FileNode>>(emptyList())
     val workspacePreview: StateFlow<List<FileNode>> = _workspacePreview
 
@@ -75,6 +78,9 @@ class AppViewModel(
                 threads = FakeAppRepository.threads,
                 providers = FakeAppRepository.providers,
             )
+            persistedMessages.value.groupBy { it.threadId }.takeIf { it.isNotEmpty() }?.let {
+                _conversationMessages.value = it
+            }
             _messageComposerUiState.value = _messageComposerUiState.value.copy(
                 selectedThreadId = FakeAppRepository.threads.firstOrNull()?.id.orEmpty(),
             )
@@ -303,9 +309,12 @@ class AppViewModel(
     fun runProviderHealthcheck() {
         val provider = providers.value.firstOrNull { it.enabled } ?: return
         viewModelScope.launch {
+            val saved = repository.getProviderConfig(provider.id)
             _providerConfigUiState.value = _providerConfigUiState.value.copy(
                 providerId = provider.id,
-                defaultModel = provider.title,
+                baseUrl = saved?.baseUrl ?: _providerConfigUiState.value.baseUrl,
+                apiKey = saved?.apiKey ?: _providerConfigUiState.value.apiKey,
+                defaultModel = saved?.defaultModel ?: provider.title,
             )
             val result = modelGateway.send(
                 config = ProviderApiConfig(
@@ -336,6 +345,34 @@ class AppViewModel(
 
     fun updateProviderDefaultModel(value: String) {
         _providerConfigUiState.value = _providerConfigUiState.value.copy(defaultModel = value)
+    }
+
+    fun selectProviderConfig(providerId: String, fallbackModel: String) {
+        viewModelScope.launch {
+            val saved = repository.getProviderConfig(providerId)
+            _providerConfigUiState.value = ProviderConfigUiState(
+                providerId = providerId,
+                baseUrl = saved?.baseUrl.orEmpty(),
+                apiKey = saved?.apiKey.orEmpty(),
+                defaultModel = saved?.defaultModel ?: fallbackModel,
+            )
+        }
+    }
+
+    fun saveProviderConfig() {
+        val snapshot = _providerConfigUiState.value
+        if (snapshot.providerId.isBlank()) return
+        viewModelScope.launch {
+            repository.saveProviderConfig(
+                ProviderApiConfig(
+                    providerId = snapshot.providerId,
+                    baseUrl = snapshot.baseUrl,
+                    apiKey = snapshot.apiKey,
+                    defaultModel = snapshot.defaultModel,
+                ),
+            )
+            _shellUiState.value = _shellUiState.value.copy(stdout = "Saved provider config for ${snapshot.providerId}")
+        }
     }
 
     fun updateComposerGatewayMode(useHttp: Boolean) {
@@ -415,14 +452,18 @@ class AppViewModel(
         content: String,
     ) {
         val current = _conversationMessages.value[threadId].orEmpty()
-        val next = current + ConversationMessage(
+        val message = ConversationMessage(
             id = "${threadId}-${current.size + 1}",
             threadId = threadId,
             role = role,
             content = content,
             timestamp = Instant.now().toString(),
         )
+        val next = current + message
         _conversationMessages.value = _conversationMessages.value + (threadId to next)
+        viewModelScope.launch {
+            repository.upsertMessage(message)
+        }
     }
 
     private fun canWriteFiles(contact: AiContact): Boolean =
