@@ -14,11 +14,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.freecode.mobile.data.FakeAppRepository
+import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
-fun FilesScreen() {
-    val workspaces = FakeAppRepository.contacts.map { it.workspace }
+fun FilesScreen(viewModel: AppViewModel) {
+    val workspaces = viewModel.contacts.map { it.workspace }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

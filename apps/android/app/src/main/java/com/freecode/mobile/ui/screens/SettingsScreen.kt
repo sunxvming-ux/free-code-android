@@ -15,10 +15,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.freecode.mobile.data.FakeAppRepository
+import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(viewModel: AppViewModel) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -44,7 +44,7 @@ fun SettingsScreen() {
                 }
             }
         }
-        items(FakeAppRepository.providers) { provider ->
+        items(viewModel.providers) { provider ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
@@ -54,7 +54,10 @@ fun SettingsScreen() {
                 ) {
                     Text(provider.title, style = MaterialTheme.typography.titleMedium)
                     Text(provider.summary)
-                    Switch(checked = provider.enabled, onCheckedChange = {})
+                    Switch(
+                        checked = provider.enabled,
+                        onCheckedChange = { viewModel.toggleProvider(provider.id) },
+                    )
                 }
             }
         }

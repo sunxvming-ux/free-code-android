@@ -14,10 +14,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.freecode.mobile.data.FakeAppRepository
+import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
-fun MessagesScreen() {
+fun MessagesScreen(viewModel: AppViewModel) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -29,7 +29,7 @@ fun MessagesScreen() {
                 Text("?? AI ???????????????")
             }
         }
-        items(FakeAppRepository.threads) { thread ->
+        items(viewModel.threads) { thread ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier

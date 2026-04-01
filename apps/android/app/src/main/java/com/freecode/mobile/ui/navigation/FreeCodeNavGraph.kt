@@ -12,19 +12,23 @@ import com.freecode.mobile.ui.screens.FilesScreen
 import com.freecode.mobile.ui.screens.MainScaffold
 import com.freecode.mobile.ui.screens.MessagesScreen
 import com.freecode.mobile.ui.screens.SettingsScreen
+import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
-fun FreeCodeNavGraph(navController: NavHostController) {
+fun FreeCodeNavGraph(
+    navController: NavHostController,
+    viewModel: AppViewModel,
+) {
     MainScaffold(navController = navController) { innerPadding ->
         NavHost(
             modifier = Modifier.padding(innerPadding),
             navController = navController,
             startDestination = AppDestination.Messages.route,
         ) {
-            composable(AppDestination.Messages.route) { MessagesScreen() }
-            composable(AppDestination.Contacts.route) { ContactsScreen() }
-            composable(AppDestination.Files.route) { FilesScreen() }
-            composable(AppDestination.Settings.route) { SettingsScreen() }
+            composable(AppDestination.Messages.route) { MessagesScreen(viewModel) }
+            composable(AppDestination.Contacts.route) { ContactsScreen(viewModel) }
+            composable(AppDestination.Files.route) { FilesScreen(viewModel) }
+            composable(AppDestination.Settings.route) { SettingsScreen(viewModel) }
         }
     }
 }
