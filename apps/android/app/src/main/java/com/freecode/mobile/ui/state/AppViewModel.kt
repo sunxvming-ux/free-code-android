@@ -15,6 +15,7 @@ import com.freecode.mobile.domain.model.ProviderConfig
 import com.freecode.mobile.domain.model.ProviderSetting
 import com.freecode.mobile.domain.model.WorkspaceBinding
 import com.freecode.mobile.domain.model.permissionPreset
+import com.freecode.mobile.domain.system.AndroidShellBridge
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 class AppViewModel(
     private val repository: AppRepository,
     private val fileService: LocalWorkspaceFileService = LocalWorkspaceFileService(),
+    private val shellBridge: AndroidShellBridge = AndroidShellBridge(),
 ) : ViewModel() {
     val contacts: StateFlow<List<AiContact>> = repository.observeContacts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -37,6 +39,9 @@ class AppViewModel(
 
     private val _workspacePreview = MutableStateFlow<List<FileNode>>(emptyList())
     val workspacePreview: StateFlow<List<FileNode>> = _workspacePreview
+
+    private val _shellUiState = MutableStateFlow(ShellUiState())
+    val shellUiState: StateFlow<ShellUiState> = _shellUiState
 
     init {
         viewModelScope.launch {
@@ -101,6 +106,12 @@ class AppViewModel(
         }
     }
 
+    fun deleteContact(contactId: String) {
+        viewModelScope.launch {
+            repository.deleteContact(contactId)
+        }
+    }
+
     fun toggleProvider(id: String) {
         viewModelScope.launch {
             val provider = providers.value.firstOrNull { it.id == id } ?: return@launch
@@ -111,6 +122,34 @@ class AppViewModel(
     fun loadWorkspacePreview(path: String) {
         viewModelScope.launch {
             _workspacePreview.value = fileService.listTree(path)
+        }
+    }
+
+    fun updateShellCommand(command: String) {
+        _shellUiState.value = _shellUiState.value.copy(command = command)
+    }
+
+    fun updateShellRoot(enabled: Boolean) {
+        _shellUiState.value = _shellUiState.value.copy(useRoot = enabled)
+    }
+
+    fun runShellCommand() {
+        val snapshot = _shellUiState.value
+        if (snapshot.command.isBlank()) return
+        viewModelScope.launch {
+            _shellUiState.value = snapshot.copy(
+                running = true,
+                exitCode = null,
+                stdout = "",
+                stderr = "",
+            )
+            val result = shellBridge.execute(snapshot.command, snapshot.useRoot)
+            _shellUiState.value = _shellUiState.value.copy(
+                running = false,
+                exitCode = result.exitCode,
+                stdout = result.stdout,
+                stderr = result.stderr,
+            )
         }
     }
 

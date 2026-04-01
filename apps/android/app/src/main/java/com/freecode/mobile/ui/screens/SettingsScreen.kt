@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +24,7 @@ import com.freecode.mobile.ui.state.AppViewModel
 @Composable
 fun SettingsScreen(viewModel: AppViewModel) {
     val providers by viewModel.providers.collectAsState()
+    val shellUiState by viewModel.shellUiState.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -43,8 +46,34 @@ fun SettingsScreen(viewModel: AppViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("System execution", style = MaterialTheme.typography.titleMedium)
-                    Text("The root shell bridge is scaffolded and will be wired to task execution next.")
-                    Switch(checked = true, onCheckedChange = {})
+                    Text("The root shell bridge is scaffolded and can be tested here.")
+                    Switch(
+                        checked = shellUiState.useRoot,
+                        onCheckedChange = viewModel::updateShellRoot,
+                    )
+                    OutlinedTextField(
+                        value = shellUiState.command,
+                        onValueChange = viewModel::updateShellCommand,
+                        label = { Text("Shell command") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = { viewModel.runShellCommand() },
+                        enabled = !shellUiState.running,
+                    ) {
+                        Text(if (shellUiState.running) "Running..." else "Run command")
+                    }
+                    shellUiState.exitCode?.let {
+                        Text("Exit code: $it")
+                    }
+                    if (shellUiState.stdout.isNotBlank()) {
+                        Text("stdout")
+                        Text(shellUiState.stdout)
+                    }
+                    if (shellUiState.stderr.isNotBlank()) {
+                        Text("stderr")
+                        Text(shellUiState.stderr)
+                    }
                 }
             }
         }

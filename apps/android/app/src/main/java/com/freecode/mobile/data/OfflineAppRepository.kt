@@ -45,4 +45,9 @@ class OfflineAppRepository(
     override suspend fun setProviderEnabled(id: String, enabled: Boolean) {
         database.providerSettingDao().setEnabled(id, enabled)
     }
+
+    override suspend fun deleteContact(contactId: String) {
+        database.contactDao().deleteById(contactId)
+        database.conversationThreadDao().deleteByAiId(contactId)
+    }
 }

@@ -16,6 +16,9 @@ interface ContactDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: ContactEntity)
+
+    @Query("DELETE FROM contacts WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
 
 @Dao
@@ -28,6 +31,9 @@ interface ConversationThreadDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: ConversationThreadEntity)
+
+    @Query("DELETE FROM threads WHERE aiId = :aiId")
+    suspend fun deleteByAiId(aiId: String)
 }
 
 @Dao

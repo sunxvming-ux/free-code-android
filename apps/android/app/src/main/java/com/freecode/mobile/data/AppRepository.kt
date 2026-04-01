@@ -19,4 +19,5 @@ interface AppRepository {
     suspend fun upsertContact(contact: AiContact)
     suspend fun upsertThread(thread: ConversationThread)
     suspend fun setProviderEnabled(id: String, enabled: Boolean)
+    suspend fun deleteContact(contactId: String)
 }
