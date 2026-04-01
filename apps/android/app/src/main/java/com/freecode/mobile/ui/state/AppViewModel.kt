@@ -54,12 +54,21 @@ class AppViewModel(
     private val _editingContactId = MutableStateFlow<String?>(null)
     val editingContactId: StateFlow<String?> = _editingContactId
 
+    private val _messageComposerUiState = MutableStateFlow(MessageComposerUiState())
+    val messageComposerUiState: StateFlow<MessageComposerUiState> = _messageComposerUiState
+
+    private val _providerConfigUiState = MutableStateFlow(ProviderConfigUiState())
+    val providerConfigUiState: StateFlow<ProviderConfigUiState> = _providerConfigUiState
+
     init {
         viewModelScope.launch {
             repository.bootstrapIfEmpty(
                 contacts = FakeAppRepository.contacts,
                 threads = FakeAppRepository.threads,
                 providers = FakeAppRepository.providers,
+            )
+            _messageComposerUiState.value = _messageComposerUiState.value.copy(
+                selectedThreadId = FakeAppRepository.threads.firstOrNull()?.id.orEmpty(),
             )
         }
     }
@@ -211,8 +220,29 @@ class AppViewModel(
             _fileEditorUiState.value = _fileEditorUiState.value.copy(
                 selectedFilePath = path,
                 selectedFileContent = content,
+                dirty = false,
                 statusMessage = "Opened $path",
             )
+        }
+    }
+
+    fun updateSelectedFileContent(content: String) {
+        _fileEditorUiState.value = _fileEditorUiState.value.copy(
+            selectedFileContent = content,
+            dirty = true,
+        )
+    }
+
+    fun saveSelectedFile() {
+        val snapshot = _fileEditorUiState.value
+        if (snapshot.selectedFilePath.isBlank()) return
+        viewModelScope.launch {
+            val success = fileService.writeText(snapshot.selectedFilePath, snapshot.selectedFileContent)
+            _fileEditorUiState.value = _fileEditorUiState.value.copy(
+                dirty = !success,
+                statusMessage = if (success) "Saved ${snapshot.selectedFilePath}" else "Failed to save ${snapshot.selectedFilePath}",
+            )
+            loadWorkspacePreview(snapshot.activeWorkspacePath)
         }
     }
 
@@ -247,19 +277,80 @@ class AppViewModel(
     fun runProviderHealthcheck() {
         val provider = providers.value.firstOrNull { it.enabled } ?: return
         viewModelScope.launch {
+            _providerConfigUiState.value = _providerConfigUiState.value.copy(
+                providerId = provider.id,
+                defaultModel = provider.title,
+            )
             val result = modelGateway.send(
                 config = ProviderApiConfig(
-                    providerId = provider.id,
-                    defaultModel = provider.title,
+                    providerId = _providerConfigUiState.value.providerId.ifBlank { provider.id },
+                    baseUrl = _providerConfigUiState.value.baseUrl,
+                    apiKey = _providerConfigUiState.value.apiKey,
+                    defaultModel = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
                 ),
                 request = ModelRequest(
                     prompt = "healthcheck",
-                    model = provider.title,
+                    model = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
                 ),
             )
             _shellUiState.value = _shellUiState.value.copy(
                 stdout = result.getOrNull()?.content ?: "",
                 stderr = result.exceptionOrNull()?.message ?: "",
+            )
+        }
+    }
+
+    fun updateProviderBaseUrl(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(baseUrl = value)
+    }
+
+    fun updateProviderApiKey(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(apiKey = value)
+    }
+
+    fun updateProviderDefaultModel(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(defaultModel = value)
+    }
+
+    fun selectThread(threadId: String) {
+        _messageComposerUiState.value = _messageComposerUiState.value.copy(selectedThreadId = threadId)
+    }
+
+    fun updateComposerPrompt(prompt: String) {
+        _messageComposerUiState.value = _messageComposerUiState.value.copy(prompt = prompt)
+    }
+
+    fun sendMessageToSelectedThread() {
+        val composer = _messageComposerUiState.value
+        val thread = threads.value.firstOrNull { it.id == composer.selectedThreadId } ?: return
+        val contact = contacts.value.firstOrNull { it.id == thread.aiId } ?: return
+        if (composer.prompt.isBlank()) return
+
+        viewModelScope.launch {
+            _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "Sending...")
+            val result = modelGateway.send(
+                config = ProviderApiConfig(
+                    providerId = contact.provider.id,
+                    baseUrl = contact.provider.baseUrl.orEmpty(),
+                    defaultModel = contact.provider.model,
+                ),
+                request = ModelRequest(
+                    prompt = composer.prompt,
+                    model = contact.provider.model,
+                ),
+            )
+            val response = result.getOrNull()
+            val updatedThread = thread.copy(
+                lastMessagePreview = response?.content ?: "Request failed",
+                updatedAt = Instant.now().toString(),
+                pinned = true,
+            )
+            repository.upsertThread(updatedThread)
+            _messageComposerUiState.value = composer.copy(
+                sending = false,
+                prompt = "",
+                responsePreview = response?.content ?: "",
+                statusMessage = if (result.isSuccess) "Message sent" else "Send failed",
             )
         }
     }

@@ -5,5 +5,6 @@ data class FileEditorUiState(
     val selectedFilePath: String = "",
     val selectedFileContent: String = "",
     val newFileName: String = "notes.txt",
+    val dirty: Boolean = false,
     val statusMessage: String = "",
 )

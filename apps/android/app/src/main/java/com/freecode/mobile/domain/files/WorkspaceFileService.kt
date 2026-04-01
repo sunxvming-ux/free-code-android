@@ -5,4 +5,5 @@ interface WorkspaceFileService {
     suspend fun createDirectory(path: String): Boolean
     suspend fun createFile(path: String, content: String = ""): Boolean
     suspend fun readText(path: String): String
+    suspend fun writeText(path: String, content: String): Boolean
 }

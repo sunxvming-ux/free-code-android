@@ -64,6 +64,11 @@ fun FilesScreen(viewModel: AppViewModel) {
                     Button(onClick = { viewModel.createFileInActiveWorkspace() }) {
                         Text("Create file in active workspace")
                     }
+                    if (editorState.selectedFilePath.isNotBlank()) {
+                        Button(onClick = { viewModel.saveSelectedFile() }) {
+                            Text(if (editorState.dirty) "Save selected file" else "Save current file")
+                        }
+                    }
                     if (editorState.statusMessage.isNotBlank()) {
                         Text(editorState.statusMessage)
                     }
@@ -111,9 +116,8 @@ fun FilesScreen(viewModel: AppViewModel) {
                         Text(editorState.selectedFilePath)
                         OutlinedTextField(
                             value = editorState.selectedFileContent,
-                            onValueChange = {},
+                            onValueChange = viewModel::updateSelectedFileContent,
                             modifier = Modifier.fillMaxWidth(),
-                            readOnly = true,
                             minLines = 8,
                             label = { Text("Content preview") },
                         )

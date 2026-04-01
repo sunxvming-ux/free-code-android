@@ -40,4 +40,11 @@ class LocalWorkspaceFileService : WorkspaceFileService {
 
     override suspend fun readText(path: String): String =
         File(path).takeIf { it.exists() }?.readText() ?: ""
+
+    override suspend fun writeText(path: String, content: String): Boolean = runCatching {
+        val file = File(path)
+        file.parentFile?.mkdirs()
+        file.writeText(content)
+        true
+    }.getOrDefault(false)
 }

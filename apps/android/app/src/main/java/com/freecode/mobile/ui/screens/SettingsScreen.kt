@@ -25,6 +25,7 @@ import com.freecode.mobile.ui.state.AppViewModel
 fun SettingsScreen(viewModel: AppViewModel) {
     val providers by viewModel.providers.collectAsState()
     val shellUiState by viewModel.shellUiState.collectAsState()
+    val providerConfig by viewModel.providerConfigUiState.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -80,6 +81,36 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         Text("stderr")
                         Text(shellUiState.stderr)
                     }
+                }
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Provider request config", style = MaterialTheme.typography.titleMedium)
+                    OutlinedTextField(
+                        value = providerConfig.baseUrl,
+                        onValueChange = viewModel::updateProviderBaseUrl,
+                        label = { Text("Base URL") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = providerConfig.apiKey,
+                        onValueChange = viewModel::updateProviderApiKey,
+                        label = { Text("API key") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = providerConfig.defaultModel,
+                        onValueChange = viewModel::updateProviderDefaultModel,
+                        label = { Text("Default model") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
