@@ -78,12 +78,16 @@ class AppViewModel(
                 threads = FakeAppRepository.threads,
                 providers = FakeAppRepository.providers,
             )
-            persistedMessages.value.groupBy { it.threadId }.takeIf { it.isNotEmpty() }?.let {
-                _conversationMessages.value = it
-            }
             _messageComposerUiState.value = _messageComposerUiState.value.copy(
                 selectedThreadId = FakeAppRepository.threads.firstOrNull()?.id.orEmpty(),
             )
+        }
+        viewModelScope.launch {
+            persistedMessages.collect { items ->
+                if (items.isNotEmpty()) {
+                    _conversationMessages.value = items.groupBy { it.threadId }
+                }
+            }
         }
     }
 
@@ -381,6 +385,17 @@ class AppViewModel(
 
     fun selectThread(threadId: String) {
         _messageComposerUiState.value = _messageComposerUiState.value.copy(selectedThreadId = threadId)
+        val thread = threads.value.firstOrNull { it.id == threadId } ?: return
+        val contact = contacts.value.firstOrNull { it.id == thread.aiId } ?: return
+        viewModelScope.launch {
+            val saved = repository.getProviderConfig(contact.provider.id)
+            _providerConfigUiState.value = ProviderConfigUiState(
+                providerId = contact.provider.id,
+                baseUrl = saved?.baseUrl ?: contact.provider.baseUrl.orEmpty(),
+                apiKey = saved?.apiKey.orEmpty(),
+                defaultModel = saved?.defaultModel ?: contact.provider.model,
+            )
+        }
     }
 
     fun updateComposerPrompt(prompt: String) {

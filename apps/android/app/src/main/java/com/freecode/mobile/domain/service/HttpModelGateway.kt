@@ -54,8 +54,9 @@ class HttpModelGateway : ModelGateway {
                 connection.errorStream
             }
             val payload = stream?.let { BufferedReader(it.reader()).use { reader -> reader.readText() } }.orEmpty()
+            val parsedContent = parseResponseContent(providerFlavor, payload)
             ModelResponse(
-                content = payload.ifBlank { "Empty response from $targetUrl" },
+                content = parsedContent.ifBlank { payload.ifBlank { "Empty response from $targetUrl" } },
                 providerLabel = providerFlavor.name.lowercase(),
             )
         }
@@ -111,6 +112,33 @@ private fun buildRequestBody(flavor: ProviderFlavor, request: ModelRequest): Str
             }
         """.trimIndent()
     }
+
+private fun parseResponseContent(flavor: ProviderFlavor, payload: String): String {
+    if (payload.isBlank()) return ""
+    return when (flavor) {
+        ProviderFlavor.OPENAI, ProviderFlavor.GENERIC ->
+            extractFirst(payload, "\"content\":\"", "\"")
+                ?: extractFirst(payload, "\"text\":\"", "\"")
+                ?: payload
+
+        ProviderFlavor.ANTHROPIC ->
+            extractFirst(payload, "\"text\":\"", "\"")
+                ?: extractFirst(payload, "\"content\":\"", "\"")
+                ?: payload
+    }.unescapeJson()
+}
+
+private fun extractFirst(source: String, startToken: String, endToken: String): String? {
+    val start = source.indexOf(startToken)
+    if (start == -1) return null
+    val from = start + startToken.length
+    val end = source.indexOf(endToken, from)
+    if (end == -1) return null
+    return source.substring(from, end)
+}
+
+private fun String.unescapeJson(): String =
+    replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
 
 private fun String.quoteJson(): String =
     "\"" + replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
