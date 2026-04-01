@@ -12,10 +12,10 @@ sealed class AppDestination(
     val label: String,
     val icon: ImageVector,
 ) {
-    data object Messages : AppDestination("messages", "??", Icons.Outlined.ChatBubbleOutline)
-    data object Contacts : AppDestination("contacts", "???", Icons.Outlined.Contacts)
-    data object Files : AppDestination("files", "???", Icons.Outlined.CollectionsBookmark)
-    data object Settings : AppDestination("settings", "??", Icons.Outlined.Settings)
+    data object Messages : AppDestination("messages", "消息", Icons.Outlined.ChatBubbleOutline)
+    data object Contacts : AppDestination("contacts", "通讯录", Icons.Outlined.Contacts)
+    data object Files : AppDestination("files", "文件夹", Icons.Outlined.CollectionsBookmark)
+    data object Settings : AppDestination("settings", "设置", Icons.Outlined.Settings)
 }
 
 val bottomDestinations = listOf(

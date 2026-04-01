@@ -3,6 +3,7 @@ package com.freecode.mobile.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,8 +35,8 @@ fun MessagesScreen(viewModel: AppViewModel) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Messages", style = MaterialTheme.typography.headlineMedium)
-                Text("Each AI contact owns its own thread list and assigned workspace.")
+                Text("消息", style = MaterialTheme.typography.headlineMedium)
+                Text("每个 AI 联系人都有独立线程、模型配置和工作目录。")
             }
         }
         item {
@@ -46,30 +47,32 @@ fun MessagesScreen(viewModel: AppViewModel) {
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Composer", style = MaterialTheme.typography.titleMedium)
-                    Text("Selected thread: ${composer.selectedThreadId.ifBlank { "none" }}")
+                    Text("消息输入", style = MaterialTheme.typography.titleMedium)
+                    Text("当前线程：${composer.selectedThreadId.ifBlank { "未选择" }}")
                     OutlinedTextField(
                         value = composer.prompt,
                         onValueChange = viewModel::updateComposerPrompt,
-                        label = { Text("Message") },
+                        label = { Text("输入消息（支持中文）") },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text("Use HTTP gateway")
-                    Switch(
-                        checked = composer.useHttpGateway,
-                        onCheckedChange = viewModel::updateComposerGatewayMode,
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("HTTP 网关")
+                        Switch(
+                            checked = composer.useHttpGateway,
+                            onCheckedChange = viewModel::updateComposerGatewayMode,
+                        )
+                    }
                     Button(
                         onClick = { viewModel.sendMessageToSelectedThread() },
                         enabled = !composer.sending,
                     ) {
-                        Text(if (composer.sending) "Sending..." else "Send to selected thread")
+                        Text(if (composer.sending) "发送中..." else "发送到当前线程")
                     }
                     if (composer.statusMessage.isNotBlank()) {
                         Text(composer.statusMessage)
                     }
                     if (composer.responsePreview.isNotBlank()) {
-                        Text("Latest response")
+                        Text("最新回复")
                         Text(composer.responsePreview)
                     }
                 }
@@ -78,7 +81,7 @@ fun MessagesScreen(viewModel: AppViewModel) {
         val selectedMessages = messagesByThread[composer.selectedThreadId].orEmpty()
         if (selectedMessages.isNotEmpty()) {
             item {
-                Text("Conversation", style = MaterialTheme.typography.titleMedium)
+                Text("当前会话", style = MaterialTheme.typography.titleMedium)
             }
             items(selectedMessages) { message ->
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -107,7 +110,7 @@ fun MessagesScreen(viewModel: AppViewModel) {
                     Text(thread.lastMessagePreview, style = MaterialTheme.typography.bodyMedium)
                     Text(thread.updatedAt, style = MaterialTheme.typography.labelMedium)
                     Button(onClick = { viewModel.selectThread(thread.id) }) {
-                        Text("Select thread")
+                        Text("切换到此线程")
                     }
                 }
             }

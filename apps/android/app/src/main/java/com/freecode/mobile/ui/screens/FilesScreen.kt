@@ -42,8 +42,8 @@ fun FilesScreen(viewModel: AppViewModel) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Files", style = MaterialTheme.typography.headlineMedium)
-                Text("Create files, inspect workspace trees, and preview file content.")
+                Text("文件夹", style = MaterialTheme.typography.headlineMedium)
+                Text("创建文件、查看工作区树和预览内容，支持中文文件。")
             }
         }
         item {
@@ -54,19 +54,19 @@ fun FilesScreen(viewModel: AppViewModel) {
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("File actions", style = MaterialTheme.typography.titleMedium)
+                    Text("文件操作", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = editorState.newFileName,
                         onValueChange = viewModel::updateNewFileName,
-                        label = { Text("New file name") },
+                        label = { Text("新文件名") },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(onClick = { viewModel.createFileInActiveWorkspace() }) {
-                        Text("Create file in active workspace")
+                        Text("在当前工作区创建文件")
                     }
                     if (editorState.selectedFilePath.isNotBlank()) {
                         Button(onClick = { viewModel.saveSelectedFile() }) {
-                            Text(if (editorState.dirty) "Save selected file" else "Save current file")
+                            Text(if (editorState.dirty) "保存当前文件" else "重新保存文件")
                         }
                     }
                     if (editorState.statusMessage.isNotBlank()) {
@@ -84,14 +84,14 @@ fun FilesScreen(viewModel: AppViewModel) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(workspace.name, style = MaterialTheme.typography.titleMedium)
-                    Text("Root: ${workspace.rootPath}")
-                    Text("Writable roots: ${workspace.writableRoots.size}")
+                    Text("根目录：${workspace.rootPath}")
+                    Text("可写目录数：${workspace.writableRoots.size}")
                 }
             }
         }
         if (preview.isNotEmpty()) {
             item {
-                Text("Workspace preview", style = MaterialTheme.typography.titleMedium)
+                Text("工作区预览", style = MaterialTheme.typography.titleMedium)
             }
             items(preview.take(40)) { node ->
                 Text(
@@ -112,14 +112,14 @@ fun FilesScreen(viewModel: AppViewModel) {
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("Selected file", style = MaterialTheme.typography.titleMedium)
+                        Text("当前文件", style = MaterialTheme.typography.titleMedium)
                         Text(editorState.selectedFilePath)
                         OutlinedTextField(
                             value = editorState.selectedFileContent,
                             onValueChange = viewModel::updateSelectedFileContent,
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 8,
-                            label = { Text("Content preview") },
+                            label = { Text("文件内容") },
                         )
                     }
                 }

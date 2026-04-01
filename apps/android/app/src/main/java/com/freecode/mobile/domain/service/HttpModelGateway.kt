@@ -7,6 +7,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 class HttpModelGateway : ModelGateway {
     override suspend fun send(
@@ -46,7 +48,7 @@ class HttpModelGateway : ModelGateway {
                 }
             }
 
-            val body = buildRequestBody(providerFlavor, request)
+            val body = buildRequestBody(providerFlavor, request).toString()
             OutputStreamWriter(connection.outputStream).use { it.write(body) }
             val stream = if (connection.responseCode in 200..299) {
                 connection.inputStream
@@ -91,54 +93,108 @@ private fun buildTargetUrl(flavor: ProviderFlavor, baseUrl: String): String {
     }
 }
 
-private fun buildRequestBody(flavor: ProviderFlavor, request: ModelRequest): String =
+private fun buildRequestBody(flavor: ProviderFlavor, request: ModelRequest): JSONObject =
     when (flavor) {
-        ProviderFlavor.OPENAI, ProviderFlavor.GENERIC -> """
-            {
-              "model": "${request.model}",
-              "messages": [
-                {"role": "user", "content": ${request.prompt.quoteJson()}}
-              ]
-            }
-        """.trimIndent()
+        ProviderFlavor.OPENAI, ProviderFlavor.GENERIC -> JSONObject().apply {
+            put("model", request.model)
+            put("messages", buildOpenAiMessages(request))
+        }
 
-        ProviderFlavor.ANTHROPIC -> """
-            {
-              "model": "${request.model}",
-              "max_tokens": 1024,
-              "messages": [
-                {"role": "user", "content": ${request.prompt.quoteJson()}}
-              ]
+        ProviderFlavor.ANTHROPIC -> JSONObject().apply {
+            put("model", request.model)
+            put("max_tokens", 1024)
+            if (request.systemPrompt.isNotBlank()) {
+                put("system", request.systemPrompt)
             }
-        """.trimIndent()
+            put("messages", buildAnthropicMessages(request))
+        }
     }
 
 private fun parseResponseContent(flavor: ProviderFlavor, payload: String): String {
     if (payload.isBlank()) return ""
     return when (flavor) {
-        ProviderFlavor.OPENAI, ProviderFlavor.GENERIC ->
-            extractFirst(payload, "\"content\":\"", "\"")
-                ?: extractFirst(payload, "\"text\":\"", "\"")
-                ?: payload
+        ProviderFlavor.OPENAI, ProviderFlavor.GENERIC -> parseOpenAiPayload(payload)
 
-        ProviderFlavor.ANTHROPIC ->
-            extractFirst(payload, "\"text\":\"", "\"")
-                ?: extractFirst(payload, "\"content\":\"", "\"")
-                ?: payload
-    }.unescapeJson()
+        ProviderFlavor.ANTHROPIC -> parseAnthropicPayload(payload)
+    }.ifBlank { payload }
 }
 
-private fun extractFirst(source: String, startToken: String, endToken: String): String? {
-    val start = source.indexOf(startToken)
-    if (start == -1) return null
-    val from = start + startToken.length
-    val end = source.indexOf(endToken, from)
-    if (end == -1) return null
-    return source.substring(from, end)
+private fun buildOpenAiMessages(request: ModelRequest): JSONArray = JSONArray().apply {
+    if (request.systemPrompt.isNotBlank()) {
+        put(
+            JSONObject().apply {
+                put("role", "system")
+                put("content", request.systemPrompt)
+            },
+        )
+    }
+    request.messages.forEach { message ->
+        put(
+            JSONObject().apply {
+                put("role", message.role)
+                put("content", message.content)
+            },
+        )
+    }
+    if (request.prompt.isNotBlank()) {
+        put(
+            JSONObject().apply {
+                put("role", "user")
+                put("content", request.prompt)
+            },
+        )
+    }
 }
 
-private fun String.unescapeJson(): String =
-    replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+private fun buildAnthropicMessages(request: ModelRequest): JSONArray = JSONArray().apply {
+    request.messages.forEach { message ->
+        if (message.role != "system") {
+            put(
+                JSONObject().apply {
+                    put("role", if (message.role == "assistant") "assistant" else "user")
+                    put("content", message.content)
+                },
+            )
+        }
+    }
+    if (request.prompt.isNotBlank()) {
+        put(
+            JSONObject().apply {
+                put("role", "user")
+                put("content", request.prompt)
+            },
+        )
+    }
+}
 
-private fun String.quoteJson(): String =
-    "\"" + replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\""
+private fun parseOpenAiPayload(payload: String): String = runCatching {
+    val root = JSONObject(payload)
+    val choices = root.optJSONArray("choices") ?: return@runCatching payload
+    if (choices.length() == 0) return@runCatching payload
+    val first = choices.optJSONObject(0) ?: return@runCatching payload
+    val message = first.optJSONObject("message")
+    message?.optString("content").takeUnless { it.isNullOrBlank() }
+        ?: first.optString("text").takeUnless { it.isNullOrBlank() }
+        ?: payload
+}.getOrDefault(payload)
+
+private fun parseAnthropicPayload(payload: String): String = runCatching {
+    val root = JSONObject(payload)
+    val content = root.optJSONArray("content")
+    if (content != null && content.length() > 0) {
+        buildString {
+            for (i in 0 until content.length()) {
+                val block = content.optJSONObject(i) ?: continue
+                val text = block.optString("text")
+                if (text.isNotBlank()) {
+                    if (isNotEmpty()) append('\n')
+                    append(text)
+                }
+            }
+        }.ifBlank {
+            root.optString("completion").ifBlank { payload }
+        }
+    } else {
+        root.optString("completion").ifBlank { payload }
+    }
+}.getOrDefault(payload)

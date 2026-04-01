@@ -57,10 +57,10 @@ fun ContactsScreen(viewModel: AppViewModel) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Contacts", style = MaterialTheme.typography.headlineMedium)
-                Text("Create and edit AI contacts with provider, workspace, and permission presets.")
+                Text("通讯录", style = MaterialTheme.typography.headlineMedium)
+                Text("创建和编辑 AI 联系人，支持独立模型、目录、权限和中文名称。")
                 Button(onClick = { showCreateDialog = true }) {
-                    Text("Create AI")
+                    Text("创建 AI")
                 }
             }
         }
@@ -84,20 +84,20 @@ fun ContactsScreen(viewModel: AppViewModel) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(contact.name, style = MaterialTheme.typography.titleMedium)
                         Text(contact.description, style = MaterialTheme.typography.bodyMedium)
-                        Text("Model: ${contact.provider.model}")
-                        Text("Permission: ${contact.permissions.level}")
-                        Text("Workspace: ${contact.workspace.rootPath}")
+                        Text("模型：${contact.provider.model}")
+                        Text("权限：${contact.permissions.level}")
+                        Text("目录：${contact.workspace.rootPath}")
                         Row {
                             OutlinedButton(onClick = { viewModel.startEditingContact(contact.id) }) {
-                                Text("Edit")
+                                Text("编辑")
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(onClick = { viewModel.deleteContact(contact.id) }) {
-                                Text("Delete")
+                                Text("删除")
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(onClick = { viewModel.loadWorkspacePreview(contact.workspace.rootPath) }) {
-                                Text("Preview Files")
+                                Text("预览文件")
                             }
                         }
                     }
@@ -108,7 +108,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
 
     if (showCreateDialog) {
         ContactDialog(
-            title = "Create AI Contact",
+            title = "创建 AI 联系人",
             initialDraft = ContactDraft(),
             onDismiss = { showCreateDialog = false },
             onSave = {
@@ -120,7 +120,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
 
     if (editingContactId != null) {
         ContactDialog(
-            title = "Edit AI Contact",
+            title = "编辑 AI 联系人",
             initialDraft = viewModel.getEditingDraft() ?: ContactDraft(),
             onDismiss = { viewModel.stopEditingContact() },
             onSave = { draft ->
@@ -160,19 +160,19 @@ private fun ContactDialog(
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { draft = draft.copy(name = it) },
-                    label = { Text("Name") },
+                    label = { Text("名称") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = draft.description,
                     onValueChange = { draft = draft.copy(description = it) },
-                    label = { Text("Description") },
+                    label = { Text("描述") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = draft.systemPrompt,
                     onValueChange = { draft = draft.copy(systemPrompt = it) },
-                    label = { Text("System prompt") },
+                    label = { Text("系统提示词") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ExposedDropdownMenuBox(
@@ -184,7 +184,7 @@ private fun ContactDialog(
                         readOnly = true,
                         value = draft.providerKind.name,
                         onValueChange = {},
-                        label = { Text("Provider") },
+                        label = { Text("模型提供商") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerMenuExpanded) },
                     )
                     DropdownMenu(
@@ -205,7 +205,7 @@ private fun ContactDialog(
                 OutlinedTextField(
                     value = draft.model,
                     onValueChange = { draft = draft.copy(model = it) },
-                    label = { Text("Model") },
+                    label = { Text("模型") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ExposedDropdownMenuBox(
@@ -217,7 +217,7 @@ private fun ContactDialog(
                         readOnly = true,
                         value = draft.permissionLevel.name,
                         onValueChange = {},
-                        label = { Text("Permission level") },
+                        label = { Text("权限级别") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = permissionMenuExpanded) },
                     )
                     DropdownMenu(
@@ -238,13 +238,13 @@ private fun ContactDialog(
                 OutlinedTextField(
                     value = draft.workspaceName,
                     onValueChange = { draft = draft.copy(workspaceName = it) },
-                    label = { Text("Workspace name") },
+                    label = { Text("工作区名称") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = draft.workspacePath,
                     onValueChange = { draft = draft.copy(workspacePath = it) },
-                    label = { Text("Workspace path") },
+                    label = { Text("工作区路径") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

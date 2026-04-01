@@ -20,6 +20,7 @@ import com.freecode.mobile.domain.model.WorkspaceBinding
 import com.freecode.mobile.domain.model.permissionPreset
 import com.freecode.mobile.domain.model.toDraft
 import com.freecode.mobile.domain.service.HttpModelGateway
+import com.freecode.mobile.domain.service.ModelMessage
 import com.freecode.mobile.domain.service.ModelRequest
 import com.freecode.mobile.domain.service.StubModelGateway
 import com.freecode.mobile.domain.system.AndroidShellBridge
@@ -422,6 +423,10 @@ class AppViewModel(
                     request = ModelRequest(
                         prompt = composer.prompt,
                         model = providerRequest.defaultModel.ifBlank { contact.provider.model },
+                        systemPrompt = contact.systemPrompt,
+                        messages = conversationMessages.value[thread.id]
+                            .orEmpty()
+                            .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
                     ),
                 )
             } else {
@@ -430,6 +435,10 @@ class AppViewModel(
                     request = ModelRequest(
                         prompt = composer.prompt,
                         model = providerRequest.defaultModel.ifBlank { contact.provider.model },
+                        systemPrompt = contact.systemPrompt,
+                        messages = conversationMessages.value[thread.id]
+                            .orEmpty()
+                            .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
                     ),
                 )
             }
