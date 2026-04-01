@@ -130,6 +130,14 @@ class AppViewModel(
                 tags = listOf(draft.permissionLevel.name.lowercase()),
             )
             repository.upsertContact(contact)
+            repository.saveProviderConfig(
+                ProviderApiConfig(
+                    providerId = provider.id,
+                    baseUrl = provider.baseUrl.orEmpty(),
+                    apiKey = "",
+                    defaultModel = provider.model,
+                ),
+            )
             repository.upsertThread(
                 ConversationThread(
                     id = "thread-${threadSnapshot.size + 1}",
@@ -186,6 +194,14 @@ class AppViewModel(
                 tags = listOf(draft.permissionLevel.name.lowercase()),
             )
             repository.upsertContact(updated)
+            repository.saveProviderConfig(
+                ProviderApiConfig(
+                    providerId = updated.provider.id,
+                    baseUrl = updated.provider.baseUrl.orEmpty(),
+                    apiKey = repository.getProviderConfig(updated.provider.id)?.apiKey.orEmpty(),
+                    defaultModel = updated.provider.model,
+                ),
+            )
             fileService.createDirectory(workspacePath)
             loadWorkspacePreview(workspacePath)
             stopEditingContact()
@@ -408,14 +424,22 @@ class AppViewModel(
         val thread = threads.value.firstOrNull { it.id == composer.selectedThreadId } ?: return
         val contact = contacts.value.firstOrNull { it.id == thread.aiId } ?: return
         if (composer.prompt.isBlank()) return
+        if (!canUseNetwork(contact)) {
+            _messageComposerUiState.value = composer.copy(statusMessage = "当前 AI 没有网络权限，无法发送消息。")
+            return
+        }
 
         viewModelScope.launch {
             _messageComposerUiState.value = composer.copy(sending = true, statusMessage = "Sending...")
+            val savedProviderConfig = repository.getProviderConfig(contact.provider.id)
             val providerRequest = ProviderApiConfig(
                 providerId = contact.provider.id,
-                baseUrl = providerConfigUiState.value.baseUrl.ifBlank { contact.provider.baseUrl.orEmpty() },
-                apiKey = providerConfigUiState.value.apiKey,
-                defaultModel = providerConfigUiState.value.defaultModel.ifBlank { contact.provider.model },
+                baseUrl = savedProviderConfig?.baseUrl
+                    ?: providerConfigUiState.value.baseUrl.ifBlank { contact.provider.baseUrl.orEmpty() },
+                apiKey = savedProviderConfig?.apiKey
+                    ?: providerConfigUiState.value.apiKey,
+                defaultModel = savedProviderConfig?.defaultModel
+                    ?: providerConfigUiState.value.defaultModel.ifBlank { contact.provider.model },
             )
             val gatewayResult = if (composer.useHttpGateway) {
                 httpModelGateway.send(
@@ -465,7 +489,7 @@ class AppViewModel(
                 sending = false,
                 prompt = "",
                 responsePreview = response?.content ?: "",
-                statusMessage = if (gatewayResult.isSuccess) "Message sent" else "Send failed",
+                statusMessage = if (gatewayResult.isSuccess) "消息发送成功" else "消息发送失败",
             )
         }
     }
@@ -498,6 +522,9 @@ class AppViewModel(
         if (useRoot && !contact.permissions.toolPolicy.allowRootExecution) return false
         return true
     }
+
+    private fun canUseNetwork(contact: AiContact): Boolean =
+        contact.permissions.toolPolicy.allowNetwork
 
     companion object {
         fun factory(repository: AppRepository): ViewModelProvider.Factory = object : ViewModelProvider.Factory {

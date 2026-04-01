@@ -25,8 +25,11 @@ import com.freecode.mobile.ui.state.AppViewModel
 @Composable
 fun MessagesScreen(viewModel: AppViewModel) {
     val threads by viewModel.threads.collectAsState()
+    val contacts by viewModel.contacts.collectAsState()
     val composer by viewModel.messageComposerUiState.collectAsState()
     val messagesByThread by viewModel.conversationMessages.collectAsState()
+    val selectedThread = threads.firstOrNull { it.id == composer.selectedThreadId }
+    val selectedContact = selectedThread?.let { thread -> contacts.firstOrNull { it.id == thread.aiId } }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -37,6 +40,9 @@ fun MessagesScreen(viewModel: AppViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("消息", style = MaterialTheme.typography.headlineMedium)
                 Text("每个 AI 联系人都有独立线程、模型配置和工作目录。")
+                if (selectedContact != null) {
+                    Text("当前 AI：${selectedContact.name} · 模型：${selectedContact.provider.model}")
+                }
             }
         }
         item {
@@ -49,6 +55,13 @@ fun MessagesScreen(viewModel: AppViewModel) {
                 ) {
                     Text("消息输入", style = MaterialTheme.typography.titleMedium)
                     Text("当前线程：${composer.selectedThreadId.ifBlank { "未选择" }}")
+                    if (selectedContact != null) {
+                        Text(
+                            "权限：${selectedContact.permissions.level} / 网络：${
+                                if (selectedContact.permissions.toolPolicy.allowNetwork) "允许" else "禁用"
+                            }",
+                        )
+                    }
                     OutlinedTextField(
                         value = composer.prompt,
                         onValueChange = viewModel::updateComposerPrompt,
