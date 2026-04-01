@@ -14,10 +14,10 @@ object FakeAppRepository {
     val contacts = listOf(
         AiContact(
             id = "agent-architect",
-            name = "???",
-            avatarLabel = "?",
-            systemPrompt = "?????????????????",
-            description = "????? AI",
+            name = "Architect",
+            avatarLabel = "A",
+            systemPrompt = "Design architecture, review code, and drive Android migration tasks.",
+            description = "High-permission engineering AI",
             provider = ProviderConfig(
                 id = "provider-openai",
                 kind = ProviderKind.OPENAI,
@@ -26,7 +26,7 @@ object FakeAppRepository {
             ),
             workspace = WorkspaceBinding(
                 id = "ws-main",
-                name = "???",
+                name = "Main Project",
                 rootPath = "/storage/emulated/0/free-code/workspaces/main",
                 writableRoots = listOf("/storage/emulated/0/free-code/workspaces/main"),
             ),
@@ -49,10 +49,10 @@ object FakeAppRepository {
         ),
         AiContact(
             id = "agent-helper",
-            name = "??",
-            avatarLabel = "?",
-            systemPrompt = "?????????????????",
-            description = "????? AI",
+            name = "Helper",
+            avatarLabel = "H",
+            systemPrompt = "Handle lightweight tasks, docs, and workspace organization.",
+            description = "Workspace-scoped assistant",
             provider = ProviderConfig(
                 id = "provider-anthropic",
                 kind = ProviderKind.ANTHROPIC,
@@ -61,7 +61,7 @@ object FakeAppRepository {
             ),
             workspace = WorkspaceBinding(
                 id = "ws-docs",
-                name = "????",
+                name = "Docs Workspace",
                 rootPath = "/storage/emulated/0/free-code/workspaces/docs",
                 writableRoots = listOf("/storage/emulated/0/free-code/workspaces/docs"),
             ),
@@ -85,24 +85,24 @@ object FakeAppRepository {
         ConversationThread(
             id = "thread-1",
             aiId = "agent-architect",
-            title = "Android ????",
-            lastMessagePreview = "??????????????????",
+            title = "Android migration plan",
+            lastMessagePreview = "Scaffolded Android modules, navigation, and permission models.",
             updatedAt = "2026-04-02 09:30",
             pinned = true,
         ),
         ConversationThread(
             id = "thread-2",
             aiId = "agent-helper",
-            title = "????",
-            lastMessagePreview = "?? README ???????????",
+            title = "Documentation cleanup",
+            lastMessagePreview = "Please extend the README with Android adaptation notes.",
             updatedAt = "2026-04-02 08:15",
         ),
     )
 
     val providers = listOf(
-        ProviderSetting("anthropic", "Anthropic", true, "?? API Key ? OAuth"),
-        ProviderSetting("openai", "OpenAI / Codex", true, "???????????"),
-        ProviderSetting("bedrock", "AWS Bedrock", false, "?????"),
-        ProviderSetting("vertex", "Google Vertex", false, "GCP ????"),
+        ProviderSetting("anthropic", "Anthropic", true, "Use API key or OAuth"),
+        ProviderSetting("openai", "OpenAI / Codex", true, "Primary coding-focused provider"),
+        ProviderSetting("bedrock", "AWS Bedrock", false, "Enterprise cloud routing"),
+        ProviderSetting("vertex", "Google Vertex", false, "Connect through a GCP project"),
     )
 }

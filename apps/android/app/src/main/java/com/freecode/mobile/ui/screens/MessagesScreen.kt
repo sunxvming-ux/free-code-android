@@ -12,12 +12,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
 fun MessagesScreen(viewModel: AppViewModel) {
+    val threads by viewModel.threads.collectAsState()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -25,11 +29,11 @@ fun MessagesScreen(viewModel: AppViewModel) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("??", style = MaterialTheme.typography.headlineMedium)
-                Text("?? AI ???????????????")
+                Text("Messages", style = MaterialTheme.typography.headlineMedium)
+                Text("Each AI contact owns its own thread list and assigned workspace.")
             }
         }
-        items(viewModel.threads) { thread ->
+        items(threads) { thread ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier

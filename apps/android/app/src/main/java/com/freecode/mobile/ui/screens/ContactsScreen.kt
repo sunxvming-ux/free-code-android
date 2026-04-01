@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
 fun ContactsScreen(viewModel: AppViewModel) {
+    val contacts by viewModel.contacts.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -58,7 +60,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
                 }
             }
         }
-        items(viewModel.contacts) { contact ->
+        items(contacts) { contact ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier

@@ -50,10 +50,10 @@ Split plugins into two categories:
 
 ## Phased Delivery
 ### Phase 1
-Scaffold Android app, navigation, domain models, provider settings, and contact management.
+Scaffold Android app, navigation, domain models, provider settings, contact management, and Room persistence.
 
 ### Phase 2
-Add workspace manager, file browser/editor, and permission enforcement.
+Add workspace manager, file browser/editor, permission enforcement, and root shell bridge wiring.
 
 ### Phase 3
 Add tool execution bridge, root execution, plugin runtime, and model/provider integration.

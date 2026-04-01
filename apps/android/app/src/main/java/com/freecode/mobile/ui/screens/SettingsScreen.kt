@@ -13,12 +13,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.freecode.mobile.ui.state.AppViewModel
 
 @Composable
 fun SettingsScreen(viewModel: AppViewModel) {
+    val providers by viewModel.providers.collectAsState()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -26,8 +30,8 @@ fun SettingsScreen(viewModel: AppViewModel) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("??", style = MaterialTheme.typography.headlineMedium)
-                Text("???????????????? root ???")
+                Text("Settings", style = MaterialTheme.typography.headlineMedium)
+                Text("Start with provider toggles, default workspaces, and root execution settings.")
             }
         }
         item {
@@ -38,13 +42,13 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("????", style = MaterialTheme.typography.titleMedium)
-                    Text("root ?????? Phase 2/3 ???")
+                    Text("System execution", style = MaterialTheme.typography.titleMedium)
+                    Text("The root shell bridge is scaffolded and will be wired to task execution next.")
                     Switch(checked = true, onCheckedChange = {})
                 }
             }
         }
-        items(viewModel.providers) { provider ->
+        items(providers) { provider ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
