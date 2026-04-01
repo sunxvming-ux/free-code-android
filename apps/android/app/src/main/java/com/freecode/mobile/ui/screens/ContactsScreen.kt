@@ -47,6 +47,7 @@ import com.freecode.mobile.ui.state.AppViewModel
 @Composable
 fun ContactsScreen(viewModel: AppViewModel) {
     val contacts by viewModel.contacts.collectAsState()
+    val editingContactId by viewModel.editingContactId.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -57,7 +58,7 @@ fun ContactsScreen(viewModel: AppViewModel) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Contacts", style = MaterialTheme.typography.headlineMedium)
-                Text("Create AI contacts with provider, workspace, and permission presets.")
+                Text("Create and edit AI contacts with provider, workspace, and permission presets.")
                 Button(onClick = { showCreateDialog = true }) {
                     Text("Create AI")
                 }
@@ -87,6 +88,10 @@ fun ContactsScreen(viewModel: AppViewModel) {
                         Text("Permission: ${contact.permissions.level}")
                         Text("Workspace: ${contact.workspace.rootPath}")
                         Row {
+                            OutlinedButton(onClick = { viewModel.startEditingContact(contact.id) }) {
+                                Text("Edit")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(onClick = { viewModel.deleteContact(contact.id) }) {
                                 Text("Delete")
                             }
@@ -102,11 +107,24 @@ fun ContactsScreen(viewModel: AppViewModel) {
     }
 
     if (showCreateDialog) {
-        CreateContactDialog(
+        ContactDialog(
+            title = "Create AI Contact",
+            initialDraft = ContactDraft(),
             onDismiss = { showCreateDialog = false },
-            onCreate = {
+            onSave = {
                 viewModel.createContact(it)
                 showCreateDialog = false
+            },
+        )
+    }
+
+    if (editingContactId != null) {
+        ContactDialog(
+            title = "Edit AI Contact",
+            initialDraft = viewModel.getEditingDraft() ?: ContactDraft(),
+            onDismiss = { viewModel.stopEditingContact() },
+            onSave = { draft ->
+                editingContactId?.let { viewModel.updateContact(it, draft) }
             },
         )
     }
@@ -114,18 +132,20 @@ fun ContactsScreen(viewModel: AppViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CreateContactDialog(
+private fun ContactDialog(
+    title: String,
+    initialDraft: ContactDraft,
     onDismiss: () -> Unit,
-    onCreate: (ContactDraft) -> Unit,
+    onSave: (ContactDraft) -> Unit,
 ) {
-    var draft by remember { mutableStateOf(ContactDraft()) }
+    var draft by remember(initialDraft) { mutableStateOf(initialDraft) }
     var providerMenuExpanded by remember { mutableStateOf(false) }
     var permissionMenuExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onCreate(draft) }) {
+            TextButton(onClick = { onSave(draft) }) {
                 Text("Save")
             }
         },
@@ -134,7 +154,7 @@ private fun CreateContactDialog(
                 Text("Cancel")
             }
         },
-        title = { Text("Create AI Contact") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -160,9 +180,7 @@ private fun CreateContactDialog(
                     onExpandedChange = { providerMenuExpanded = !providerMenuExpanded },
                 ) {
                     OutlinedTextField(
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
                         readOnly = true,
                         value = draft.providerKind.name,
                         onValueChange = {},
@@ -195,9 +213,7 @@ private fun CreateContactDialog(
                     onExpandedChange = { permissionMenuExpanded = !permissionMenuExpanded },
                 ) {
                     OutlinedTextField(
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
                         readOnly = true,
                         value = draft.permissionLevel.name,
                         onValueChange = {},

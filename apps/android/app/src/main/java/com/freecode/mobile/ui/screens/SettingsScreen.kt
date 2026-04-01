@@ -34,7 +34,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Settings", style = MaterialTheme.typography.headlineMedium)
-                Text("Start with provider toggles, default workspaces, and root execution settings.")
+                Text("Start with provider toggles, root execution settings, and provider health checks.")
             }
         }
         item {
@@ -62,6 +62,12 @@ fun SettingsScreen(viewModel: AppViewModel) {
                         enabled = !shellUiState.running,
                     ) {
                         Text(if (shellUiState.running) "Running..." else "Run command")
+                    }
+                    Button(
+                        onClick = { viewModel.runProviderHealthcheck() },
+                        enabled = !shellUiState.running,
+                    ) {
+                        Text("Run provider healthcheck")
                     }
                     shellUiState.exitCode?.let {
                         Text("Exit code: $it")
