@@ -1,6 +1,7 @@
 package com.freecode.mobile.domain.service
 
 import com.freecode.mobile.domain.model.ProviderApiConfig
+import com.freecode.mobile.domain.model.ProviderAuthMode
 import java.io.BufferedReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -34,7 +35,9 @@ class HttpModelGateway : ModelGateway {
 
             when (providerFlavor) {
                 ProviderFlavor.ANTHROPIC -> {
-                    if (config.apiKey.isNotBlank()) {
+                    if (config.authMode == ProviderAuthMode.OAUTH && config.oauthAccessToken.isNotBlank()) {
+                        connection.setRequestProperty("Authorization", "Bearer ${config.oauthAccessToken}")
+                    } else if (config.apiKey.isNotBlank()) {
                         connection.setRequestProperty("x-api-key", config.apiKey)
                     }
                     connection.setRequestProperty("anthropic-version", "2023-06-01")
@@ -42,8 +45,13 @@ class HttpModelGateway : ModelGateway {
 
                 ProviderFlavor.OPENAI,
                 ProviderFlavor.GENERIC -> {
-                    if (config.apiKey.isNotBlank()) {
-                        connection.setRequestProperty("Authorization", "Bearer ${config.apiKey}")
+                    val bearer = when {
+                        config.authMode == ProviderAuthMode.OAUTH && config.oauthAccessToken.isNotBlank() -> config.oauthAccessToken
+                        config.apiKey.isNotBlank() -> config.apiKey
+                        else -> ""
+                    }
+                    if (bearer.isNotBlank()) {
+                        connection.setRequestProperty("Authorization", "Bearer $bearer")
                     }
                 }
             }

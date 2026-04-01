@@ -13,6 +13,7 @@ import com.freecode.mobile.domain.model.ConversationMessage
 import com.freecode.mobile.domain.model.ConversationThread
 import com.freecode.mobile.domain.model.MessageRole
 import com.freecode.mobile.domain.model.PermissionLevel
+import com.freecode.mobile.domain.model.ProviderAuthMode
 import com.freecode.mobile.domain.model.ProviderApiConfig
 import com.freecode.mobile.domain.model.ProviderConfig
 import com.freecode.mobile.domain.model.ProviderSetting
@@ -132,6 +133,7 @@ class AppViewModel(
                     baseUrl = provider.baseUrl.orEmpty(),
                     apiKey = "",
                     defaultModel = provider.model,
+                    authMode = ProviderAuthMode.API_KEY,
                 ),
             )
             repository.upsertThread(
@@ -194,6 +196,10 @@ class AppViewModel(
                     baseUrl = updated.provider.baseUrl.orEmpty(),
                     apiKey = repository.getProviderConfig(updated.provider.id)?.apiKey.orEmpty(),
                     defaultModel = updated.provider.model,
+                    authMode = repository.getProviderConfig(updated.provider.id)?.authMode ?: ProviderAuthMode.API_KEY,
+                    oauthAccessToken = repository.getProviderConfig(updated.provider.id)?.oauthAccessToken.orEmpty(),
+                    oauthRefreshToken = repository.getProviderConfig(updated.provider.id)?.oauthRefreshToken.orEmpty(),
+                    oauthClientId = repository.getProviderConfig(updated.provider.id)?.oauthClientId.orEmpty(),
                 ),
             )
             fileService.createDirectory(workspacePath)
@@ -322,6 +328,10 @@ class AppViewModel(
                 baseUrl = saved?.baseUrl ?: _providerConfigUiState.value.baseUrl,
                 apiKey = saved?.apiKey ?: _providerConfigUiState.value.apiKey,
                 defaultModel = saved?.defaultModel ?: provider.title,
+                authMode = saved?.authMode ?: ProviderAuthMode.API_KEY,
+                oauthAccessToken = saved?.oauthAccessToken.orEmpty(),
+                oauthRefreshToken = saved?.oauthRefreshToken.orEmpty(),
+                oauthClientId = saved?.oauthClientId.orEmpty(),
             )
             val result = modelGateway.send(
                 config = ProviderApiConfig(
@@ -354,6 +364,22 @@ class AppViewModel(
         _providerConfigUiState.value = _providerConfigUiState.value.copy(defaultModel = value)
     }
 
+    fun updateProviderAuthMode(value: ProviderAuthMode) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(authMode = value)
+    }
+
+    fun updateProviderOauthAccessToken(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(oauthAccessToken = value)
+    }
+
+    fun updateProviderOauthRefreshToken(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(oauthRefreshToken = value)
+    }
+
+    fun updateProviderOauthClientId(value: String) {
+        _providerConfigUiState.value = _providerConfigUiState.value.copy(oauthClientId = value)
+    }
+
     fun selectProviderConfig(providerId: String, fallbackModel: String) {
         viewModelScope.launch {
             val saved = repository.getProviderConfig(providerId)
@@ -362,6 +388,10 @@ class AppViewModel(
                 baseUrl = saved?.baseUrl.orEmpty(),
                 apiKey = saved?.apiKey.orEmpty(),
                 defaultModel = saved?.defaultModel ?: fallbackModel,
+                authMode = saved?.authMode ?: ProviderAuthMode.API_KEY,
+                oauthAccessToken = saved?.oauthAccessToken.orEmpty(),
+                oauthRefreshToken = saved?.oauthRefreshToken.orEmpty(),
+                oauthClientId = saved?.oauthClientId.orEmpty(),
             )
         }
     }
@@ -376,6 +406,10 @@ class AppViewModel(
                     baseUrl = snapshot.baseUrl,
                     apiKey = snapshot.apiKey,
                     defaultModel = snapshot.defaultModel,
+                    authMode = snapshot.authMode,
+                    oauthAccessToken = snapshot.oauthAccessToken,
+                    oauthRefreshToken = snapshot.oauthRefreshToken,
+                    oauthClientId = snapshot.oauthClientId,
                 ),
             )
             _shellUiState.value = _shellUiState.value.copy(stdout = "已保存 Provider 配置：${snapshot.providerId}")
@@ -397,6 +431,10 @@ class AppViewModel(
                 baseUrl = saved?.baseUrl ?: contact.provider.baseUrl.orEmpty(),
                 apiKey = saved?.apiKey.orEmpty(),
                 defaultModel = saved?.defaultModel ?: contact.provider.model,
+                authMode = saved?.authMode ?: ProviderAuthMode.API_KEY,
+                oauthAccessToken = saved?.oauthAccessToken.orEmpty(),
+                oauthRefreshToken = saved?.oauthRefreshToken.orEmpty(),
+                oauthClientId = saved?.oauthClientId.orEmpty(),
             )
         }
     }
@@ -444,6 +482,10 @@ class AppViewModel(
                 apiKey = savedProviderConfig?.apiKey ?: providerConfigUiState.value.apiKey,
                 defaultModel = savedProviderConfig?.defaultModel
                     ?: providerConfigUiState.value.defaultModel.ifBlank { contact.provider.model },
+                authMode = savedProviderConfig?.authMode ?: providerConfigUiState.value.authMode,
+                oauthAccessToken = savedProviderConfig?.oauthAccessToken ?: providerConfigUiState.value.oauthAccessToken,
+                oauthRefreshToken = savedProviderConfig?.oauthRefreshToken ?: providerConfigUiState.value.oauthRefreshToken,
+                oauthClientId = savedProviderConfig?.oauthClientId ?: providerConfigUiState.value.oauthClientId,
             )
             val request = ModelRequest(
                 prompt = composer.prompt,

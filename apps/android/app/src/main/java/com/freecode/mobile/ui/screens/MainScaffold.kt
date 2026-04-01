@@ -26,15 +26,19 @@ fun MainScaffold(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets.navigationBars,
-        bottomBar = {
-            NavigationBar {
-                bottomDestinations.forEach { destination ->
-                    NavigationBarItem(
-                        selected = currentRoute == destination.route,
-                        onClick = { navController.navigateBottom(destination.route) },
-                        icon = { Icon(destination.icon, contentDescription = destination.label) },
-                        label = { Text(destination.label) },
-                    )
+        bottomBar = if (currentRoute == "chat/{threadId}" || currentRoute?.startsWith("chat/") == true) {
+            {}
+        } else {
+            {
+                NavigationBar {
+                    bottomDestinations.forEach { destination ->
+                        NavigationBarItem(
+                            selected = currentRoute == destination.route,
+                            onClick = { navController.navigateBottom(destination.route) },
+                            icon = { Icon(destination.icon, contentDescription = destination.label) },
+                            label = { Text(destination.label) },
+                        )
+                    }
                 }
             }
         },

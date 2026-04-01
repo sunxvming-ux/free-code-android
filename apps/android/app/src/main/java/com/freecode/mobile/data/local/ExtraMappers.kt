@@ -8,6 +8,10 @@ fun ProviderConfigEntity.toDomain(): ProviderApiConfig = ProviderApiConfig(
     baseUrl = baseUrl,
     apiKey = apiKey,
     defaultModel = defaultModel,
+    authMode = authMode,
+    oauthAccessToken = oauthAccessToken,
+    oauthRefreshToken = oauthRefreshToken,
+    oauthClientId = oauthClientId,
 )
 
 fun ProviderApiConfig.toEntity(): ProviderConfigEntity = ProviderConfigEntity(
@@ -15,6 +19,10 @@ fun ProviderApiConfig.toEntity(): ProviderConfigEntity = ProviderConfigEntity(
     baseUrl = baseUrl,
     apiKey = apiKey,
     defaultModel = defaultModel,
+    authMode = authMode,
+    oauthAccessToken = oauthAccessToken,
+    oauthRefreshToken = oauthRefreshToken,
+    oauthClientId = oauthClientId,
 )
 
 fun ConversationMessageEntity.toDomain(): ConversationMessage = ConversationMessage(

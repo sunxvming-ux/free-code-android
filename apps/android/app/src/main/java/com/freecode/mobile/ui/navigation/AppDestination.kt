@@ -13,6 +13,9 @@ sealed class AppDestination(
     val icon: ImageVector,
 ) {
     data object Messages : AppDestination("messages", "消息", Icons.Outlined.ChatBubbleOutline)
+    data object Chat : AppDestination("chat/{threadId}", "聊天", Icons.Outlined.ChatBubbleOutline) {
+        fun route(threadId: String) = "chat/$threadId"
+    }
     data object Contacts : AppDestination("contacts", "通讯录", Icons.Outlined.Contacts)
     data object Files : AppDestination("files", "文件夹", Icons.Outlined.CollectionsBookmark)
     data object Settings : AppDestination("settings", "设置", Icons.Outlined.Settings)
