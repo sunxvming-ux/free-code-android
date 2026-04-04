@@ -23,7 +23,6 @@ import com.freecode.mobile.domain.model.toDraft
 import com.freecode.mobile.domain.service.HttpModelGateway
 import com.freecode.mobile.domain.service.ModelMessage
 import com.freecode.mobile.domain.service.ModelRequest
-import com.freecode.mobile.domain.service.StubModelGateway
 import com.freecode.mobile.domain.system.AndroidShellBridge
 import java.io.File
 import java.time.Instant
@@ -37,7 +36,6 @@ class AppViewModel(
     private val repository: AppRepository,
     private val fileService: LocalWorkspaceFileService = LocalWorkspaceFileService(),
     private val shellBridge: AndroidShellBridge = AndroidShellBridge(),
-    private val modelGateway: StubModelGateway = StubModelGateway(),
     private val httpModelGateway: HttpModelGateway = HttpModelGateway(),
 ) : ViewModel() {
     val contacts: StateFlow<List<AiContact>> = repository.observeContacts()
@@ -333,13 +331,18 @@ class AppViewModel(
                 oauthRefreshToken = saved?.oauthRefreshToken.orEmpty(),
                 oauthClientId = saved?.oauthClientId.orEmpty(),
             )
-            val result = modelGateway.send(
-                config = ProviderApiConfig(
-                    providerId = _providerConfigUiState.value.providerId.ifBlank { provider.id },
-                    baseUrl = _providerConfigUiState.value.baseUrl,
-                    apiKey = _providerConfigUiState.value.apiKey,
-                    defaultModel = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
-                ),
+            val requestConfig = ProviderApiConfig(
+                providerId = _providerConfigUiState.value.providerId.ifBlank { provider.id },
+                baseUrl = _providerConfigUiState.value.baseUrl,
+                apiKey = _providerConfigUiState.value.apiKey,
+                defaultModel = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
+                authMode = _providerConfigUiState.value.authMode,
+                oauthAccessToken = _providerConfigUiState.value.oauthAccessToken,
+                oauthRefreshToken = _providerConfigUiState.value.oauthRefreshToken,
+                oauthClientId = _providerConfigUiState.value.oauthClientId,
+            )
+            val result = httpModelGateway.send(
+                config = requestConfig,
                 request = ModelRequest(
                     prompt = "接口健康检查",
                     model = _providerConfigUiState.value.defaultModel.ifBlank { provider.title },
@@ -414,10 +417,6 @@ class AppViewModel(
             )
             _shellUiState.value = _shellUiState.value.copy(stdout = "已保存 Provider 配置：${snapshot.providerId}")
         }
-    }
-
-    fun updateComposerGatewayMode(useHttp: Boolean) {
-        _messageComposerUiState.value = _messageComposerUiState.value.copy(useHttpGateway = useHttp)
     }
 
     fun selectThread(threadId: String) {
@@ -495,11 +494,7 @@ class AppViewModel(
                     .orEmpty()
                     .map { ModelMessage(role = it.role.name.lowercase(), content = it.content) },
             )
-            val gatewayResult = if (composer.useHttpGateway) {
-                httpModelGateway.send(config = providerRequest, request = request)
-            } else {
-                modelGateway.send(config = providerRequest, request = request)
-            }
+            val gatewayResult = httpModelGateway.send(config = providerRequest, request = request)
             val response = gatewayResult.getOrNull()
             response?.content?.let { appendMessage(thread.id, MessageRole.ASSISTANT, it) }
             repository.upsertThread(

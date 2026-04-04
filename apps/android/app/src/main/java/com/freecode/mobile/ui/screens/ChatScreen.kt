@@ -29,7 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -115,7 +114,7 @@ fun ChatScreen(
                         color = Color.Gray,
                     )
                     Text(
-                        text = "工具：/shell /root /read /write /ls",
+                        text = "真实接口模式 · 工具：/shell /root /read /write /ls",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.Gray,
                     )
@@ -129,14 +128,9 @@ fun ChatScreen(
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("HTTP", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Switch(checked = composer.useHttpGateway, onCheckedChange = viewModel::updateComposerGatewayMode)
-                    }
                     Button(onClick = { viewModel.sendMessageToSelectedThread() }, enabled = !composer.sending) {
                         Text(if (composer.sending) "发送中…" else "发送")
                     }
